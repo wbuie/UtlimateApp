@@ -11,4 +11,7 @@ cd "$CLAUDE_PROJECT_DIR"
 echo "Installing npm dependencies..."
 npm install
 
+echo "Installing Claude Code CLI..."
+npm install -g @anthropic-ai/claude-code
+
 echo "Session start hook complete."
