@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  /* Background layers */
+  --color-bg-base: #0f172a;
+  --color-bg-card: #1e293b;
+  --color-bg-elevated: #273549;
+  --color-border: #334155;
+
+  /* Semantic event colors */
+  --color-green-pos: #22c55e;
+  --color-green-dim: #166534;
+  --color-red-neg: #ef4444;
+  --color-red-dim: #7f1d1d;
+  --color-amber-call: #f59e0b;
+  --color-amber-dim: #78350f;
+  --color-blue-disc: #3b82f6;
+  --color-blue-dim: #1e3a5f;
+
+  /* Text */
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-dim: #64748b;
+
+  /* Fonts */
+  --font-display: "Barlow Condensed", sans-serif;
+  --font-mono: "DM Mono", monospace;
+
+  /* Animations */
+  --animate-flash: flash 0.4s ease-out;
+  --animate-toast-in: toast-in 0.2s ease-out;
+}
+
+@keyframes flash {
+  0%   { background-color: #3b82f6; }
+  100% { background-color: transparent; }
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@layer base {
+  html, body {
+    background-color: #0f172a;
+    color: #f1f5f9;
+    font-family: "Barlow Condensed", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    margin: 0;
+    height: 100%;
+  }
+
+  #root {
+    min-height: 100dvh;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  input, button, select, textarea {
+    font-family: inherit;
+  }
+}
