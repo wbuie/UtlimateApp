@@ -37,7 +37,7 @@ export function ActionPanel() {
       case 'D':          logD(''); break
       case 'drop':       logDrop(''); break
       case 'their_drop': logTheirDrop(); break
-      case 'callahan':   break  // can't skip callahan — need the scorer
+      case 'callahan':   break
       case 'their_stall': logTheirStall(); break
     }
   }
@@ -45,8 +45,9 @@ export function ActionPanel() {
   return (
     <div className="flex flex-col gap-3 p-3">
       {/* Throw flow — disc holder + receiver taps */}
-      <div className="bg-[#1e293b] border border-[#334155] rounded-xl p-3">
-        <div className="text-xs uppercase tracking-widest text-[#94a3b8] font-[DM_Mono] mb-2">
+      <div className="rounded-xl p-3" style={{ background: '#1e293b', border: '1px solid #334155', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
+        <div className="text-[10px] uppercase tracking-widest font-[DM_Mono] mb-2.5"
+          style={{ color: discHolderPlayer ? '#3b82f6' : '#64748b' }}>
           {discHolderPlayer
             ? `${discHolderPlayer.name} has the disc — tap receiver`
             : 'Tap to set disc holder / first receiver'}
@@ -56,12 +57,13 @@ export function ActionPanel() {
             <button
               key={p.id}
               onClick={() => tapReceiver(p.id)}
-              className={`flex flex-col items-center py-2 px-1 rounded-lg border transition-colors
+              className={`btn-press flex flex-col items-center py-2.5 px-1 rounded-lg border transition-colors
                 ${discHolder === p.id
                   ? 'border-[#3b82f6] bg-[#1e3a5f] text-[#3b82f6]'
-                  : 'border-[#334155] bg-[#273549] text-[#f1f5f9] hover:border-[#94a3b8] active:bg-[#334155]'}`}
+                  : 'border-[#334155] bg-[#273549] text-[#f1f5f9] hover:border-[#94a3b8]'}`}
+              style={discHolder === p.id ? { boxShadow: '0 0 8px rgba(59,130,246,0.35)' } : {}}
             >
-              <span className="text-[10px] text-[#64748b] font-[DM_Mono]">#{p.number}</span>
+              <span className="text-[9px] text-[#64748b] font-[DM_Mono]">#{p.number}</span>
               <span className="text-xs font-bold font-[Barlow_Condensed] uppercase leading-tight text-center">
                 {p.name.split(' ')[0]}
               </span>
@@ -73,31 +75,22 @@ export function ActionPanel() {
       {/* Offense actions */}
       {possession === 'us' && (
         <div>
-          <div className="text-xs uppercase tracking-widest text-[#94a3b8] font-[DM_Mono] mb-2">
+          <div className="text-[10px] uppercase tracking-widest text-[#64748b] font-[DM_Mono] mb-2">
             Offense
           </div>
           <div className="grid grid-cols-2 gap-2">
+            {/* GOAL — biggest button, hero action */}
             <ActionBtn
               label="🏆 Goal"
               color="green"
+              size="hero"
               onClick={logGoal}
               disabled={!discHolder}
+              className="col-span-2"
             />
-            <ActionBtn
-              label="Throwaway"
-              color="red"
-              onClick={logThrowaway}
-            />
-            <ActionBtn
-              label="Drop"
-              color="red"
-              onClick={() => openPlayerPicker('drop')}
-            />
-            <ActionBtn
-              label="Stall"
-              color="red"
-              onClick={logStall}
-            />
+            <ActionBtn label="Throwaway" color="red" size="md" onClick={logThrowaway} />
+            <ActionBtn label="Drop" color="red" size="md" onClick={() => openPlayerPicker('drop')} />
+            <ActionBtn label="Stall" color="red" size="sm" onClick={logStall} />
           </div>
         </div>
       )}
@@ -105,33 +98,18 @@ export function ActionPanel() {
       {/* Defense actions */}
       {possession === 'them' && (
         <div>
-          <div className="text-xs uppercase tracking-widest text-[#94a3b8] font-[DM_Mono] mb-2">
+          <div className="text-[10px] uppercase tracking-widest text-[#64748b] font-[DM_Mono] mb-2">
             Defense
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <ActionBtn
-              label="D Block"
-              color="green"
-              onClick={() => openPlayerPicker('D')}
-            />
-            <ActionBtn
-              label="Their Drop"
-              color="green"
-              onClick={() => openPlayerPicker('their_drop')}
-            />
-            <ActionBtn
-              label="Their Stall"
-              color="green"
-              onClick={() => openPlayerPicker('their_stall')}
-            />
-            <ActionBtn
-              label="⚡ Callahan"
-              color="amber"
-              onClick={() => openPlayerPicker('callahan')}
-            />
+            <ActionBtn label="D Block" color="green" size="md" onClick={() => openPlayerPicker('D')} />
+            <ActionBtn label="Their Drop" color="green" size="md" onClick={() => openPlayerPicker('their_drop')} />
+            <ActionBtn label="Their Stall" color="green" size="sm" onClick={() => openPlayerPicker('their_stall')} />
+            <ActionBtn label="⚡ Callahan" color="amber" size="md" onClick={() => openPlayerPicker('callahan')} />
             <ActionBtn
               label="Their Goal"
               color="red"
+              size="md"
               onClick={logTheirGoal}
               className="col-span-2"
             />
@@ -142,12 +120,12 @@ export function ActionPanel() {
       {/* Always available */}
       {!game?.isComplete && (
         <div>
-          <div className="text-xs uppercase tracking-widest text-[#94a3b8] font-[DM_Mono] mb-2">
+          <div className="text-[10px] uppercase tracking-widest text-[#64748b] font-[DM_Mono] mb-2">
             Other
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <ActionBtn label="Penalty / Foul" color="amber" onClick={() => logPenalty()} />
-            <ActionBtn label="⇄ Change Line" color="blue" onClick={openSubModal} />
+            <ActionBtn label="Penalty / Foul" color="amber" size="sm" onClick={() => logPenalty()} />
+            <ActionBtn label="⇄ Change Line" color="blue" size="sm" onClick={openSubModal} />
           </div>
         </div>
       )}
@@ -182,7 +160,7 @@ export function ActionPanel() {
                     : [...onFieldPlayerIds, p.id]
                   setOnField(next)
                 }}
-                className={`flex flex-col items-center py-3 px-2 rounded-lg border transition-colors disabled:opacity-30
+                className={`btn-press flex flex-col items-center py-3 px-2 rounded-lg border transition-colors disabled:opacity-30
                   ${on
                     ? 'border-[#22c55e] bg-[#166534] text-[#22c55e]'
                     : 'border-[#334155] bg-[#273549] text-[#f1f5f9] hover:border-[#94a3b8]'}`}
@@ -198,7 +176,7 @@ export function ActionPanel() {
         </div>
         <button
           onClick={closeSubModal}
-          className="w-full py-2.5 bg-[#22c55e] text-black font-black font-[Barlow_Condensed]
+          className="btn-press w-full py-2.5 bg-[#22c55e] text-black font-black font-[Barlow_Condensed]
                      uppercase tracking-widest rounded-lg"
         >
           Done
@@ -213,26 +191,32 @@ export function ActionPanel() {
 interface ActionBtnProps {
   label: string
   color: 'green' | 'red' | 'amber' | 'blue'
+  size: 'hero' | 'md' | 'sm'
   onClick: () => void
   disabled?: boolean
   className?: string
 }
 
-function ActionBtn({ label, color, onClick, disabled, className = '' }: ActionBtnProps) {
+function ActionBtn({ label, color, size, onClick, disabled, className = '' }: ActionBtnProps) {
   const colorMap = {
-    green: 'bg-[#166534] border-[#22c55e] text-[#22c55e] hover:bg-[#22c55e] hover:text-black active:bg-[#166534]',
-    red:   'bg-[#7f1d1d] border-[#ef4444] text-[#ef4444] hover:bg-[#ef4444] hover:text-black active:bg-[#7f1d1d]',
-    amber: 'bg-[#78350f] border-[#f59e0b] text-[#f59e0b] hover:bg-[#f59e0b] hover:text-black active:bg-[#78350f]',
-    blue:  'bg-[#1e3a5f] border-[#3b82f6] text-[#3b82f6] hover:bg-[#3b82f6] hover:text-black active:bg-[#1e3a5f]',
+    green: 'bg-[#166534] border-[#22c55e] text-[#22c55e] hover:bg-[#22c55e] hover:text-black',
+    red:   'bg-[#7f1d1d] border-[#ef4444] text-[#ef4444] hover:bg-[#ef4444] hover:text-black',
+    amber: 'bg-[#78350f] border-[#f59e0b] text-[#f59e0b] hover:bg-[#f59e0b] hover:text-black',
+    blue:  'bg-[#1e3a5f] border-[#3b82f6] text-[#3b82f6] hover:bg-[#3b82f6] hover:text-black',
+  }
+  const sizeMap = {
+    hero: 'py-4 text-lg tracking-widest',
+    md:   'py-3 text-sm tracking-wide',
+    sm:   'py-2.5 text-xs tracking-wide',
   }
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`border rounded-lg py-3 px-3 text-sm font-bold font-[Barlow_Condensed] uppercase
-                  tracking-wide transition-colors select-none
+      className={`btn-press border rounded-lg px-3 font-black font-[Barlow_Condensed] uppercase
+                  transition-colors select-none
                   disabled:opacity-30 disabled:pointer-events-none
-                  ${colorMap[color]} ${className}`}
+                  ${colorMap[color]} ${sizeMap[size]} ${className}`}
     >
       {label}
     </button>

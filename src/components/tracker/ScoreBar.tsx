@@ -23,6 +23,7 @@ export function ScoreBar() {
   const timer = usePointTimer(currentPoint?.startedAt ?? null)
   const usScoreRef = useRef<HTMLDivElement>(null)
   const themScoreRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (!scoreFlash) return
     const ref = scoreFlash === 'us' ? usScoreRef : themScoreRef
@@ -43,39 +44,40 @@ export function ScoreBar() {
   const pointNum = currentPoint?.pointNumber ?? '—'
 
   return (
-    <div className="bg-[#0f172a] border-b border-[#334155]">
+    <div className="bg-[#0c1424] border-b border-[#334155]"
+      style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
       {/* Main score row */}
-      <div className="flex items-stretch">
+      <div className="flex items-stretch min-h-[88px]">
         {/* Us */}
-        <div className="flex-1 flex flex-col items-center justify-center py-3 relative">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-[#64748b] font-[DM_Mono] mb-1">Us</div>
+        <div className="flex-1 flex flex-col items-center justify-center py-4">
+          <div className="text-[9px] uppercase tracking-[0.25em] text-[#64748b] font-[DM_Mono] mb-1">Us</div>
           <div
             ref={usScoreRef}
-            className="text-5xl font-black text-[#f1f5f9] font-[Barlow_Condensed] leading-none tabular-nums"
+            className="text-6xl font-black text-[#f1f5f9] font-[Barlow_Condensed] leading-none tabular-nums"
           >
             {game.ourScore}
           </div>
         </div>
 
-        {/* Center — point + timer */}
-        <div className="flex flex-col items-center justify-center px-4 gap-1 border-x border-[#334155]">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-[#64748b] font-[DM_Mono]">Pt</div>
-          <div className="text-xl font-bold text-[#94a3b8] font-[Barlow_Condensed] leading-none">
+        {/* Center divider — point + timer */}
+        <div className="flex flex-col items-center justify-center px-5 gap-0.5 border-x border-[#334155]">
+          <div className="text-[9px] uppercase tracking-[0.25em] text-[#475569] font-[DM_Mono]">Pt</div>
+          <div className="text-2xl font-black text-[#64748b] font-[Barlow_Condensed] leading-none tabular-nums">
             {pointNum}
           </div>
-          <div className="text-sm font-[DM_Mono] text-[#64748b] tabular-nums leading-none">
+          <div className="text-xs font-[DM_Mono] text-[#475569] tabular-nums leading-none mt-0.5">
             {timer}
           </div>
         </div>
 
         {/* Them */}
-        <div className="flex-1 flex flex-col items-center justify-center py-3">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-[#64748b] font-[DM_Mono] mb-1 truncate max-w-[80px] text-center">
+        <div className="flex-1 flex flex-col items-center justify-center py-4">
+          <div className="text-[9px] uppercase tracking-[0.25em] text-[#64748b] font-[DM_Mono] mb-1 truncate max-w-[90px] text-center">
             {game.opponent}
           </div>
           <div
             ref={themScoreRef}
-            className="text-5xl font-black text-[#f1f5f9] font-[Barlow_Condensed] leading-none tabular-nums"
+            className="text-6xl font-black text-[#f1f5f9] font-[Barlow_Condensed] leading-none tabular-nums"
           >
             {game.theirScore}
           </div>
@@ -84,9 +86,10 @@ export function ScoreBar() {
 
       {/* Game complete banner */}
       {game.isComplete && (
-        <div className="bg-[#166534] border-t border-[#22c55e] py-1.5 text-center">
-          <span className="text-xs font-bold font-[Barlow_Condensed] uppercase tracking-widest text-[#22c55e]">
-            Game Complete
+        <div className="border-t border-[#22c55e] py-2 text-center"
+          style={{ background: 'linear-gradient(90deg, #166534/0 0%, #166534 50%, #166534/0 100%)', backgroundColor: '#14532d' }}>
+          <span className="text-xs font-black font-[Barlow_Condensed] uppercase tracking-[0.2em] text-[#22c55e]">
+            ● Game Complete
           </span>
         </div>
       )}

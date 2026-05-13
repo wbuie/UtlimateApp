@@ -44,6 +44,9 @@ export function GameStats() {
   const eff = calcTeamEfficiency(points, events)
   const keyEvents = calcKeyEvents(points, events)
 
+  const won = game.ourScore > game.theirScore
+  const lost = game.ourScore < game.theirScore
+
   const COLS: { key: SortKey; label: string }[] = [
     { key: 'pointsPlayed', label: 'Pts' },
     { key: 'goals',        label: 'G' },
@@ -67,11 +70,12 @@ export function GameStats() {
 
   return (
     <div className="min-h-dvh bg-[#0f172a] flex flex-col">
-      <header className="bg-[#1e293b] border-b border-[#334155] px-4 py-4">
+      <header className="bg-[#1e293b] border-b border-[#334155] px-4 py-4"
+        style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.4)' }}>
         <div className="flex items-center gap-3">
-          <Link to={`/game/${game.id}`} className="text-[#94a3b8] hover:text-[#f1f5f9] text-xl">‹</Link>
+          <Link to={`/game/${game.id}`} className="text-[#94a3b8] hover:text-[#f1f5f9] text-xl transition-colors">‹</Link>
           <div className="flex-1">
-            <h1 className="text-xl font-bold text-[#f1f5f9] font-[Barlow_Condensed] uppercase leading-none">
+            <h1 className="text-xl font-black text-[#f1f5f9] font-[Barlow_Condensed] uppercase leading-none">
               vs {game.opponent}
             </h1>
             <p className="text-xs text-[#64748b] font-[DM_Mono]">
@@ -80,24 +84,49 @@ export function GameStats() {
           </div>
           <button
             onClick={() => exportGameCsv(game, players, points, events)}
-            className="text-xs font-[DM_Mono] border border-[#334155] text-[#94a3b8]
-                       px-3 py-1.5 rounded-lg hover:bg-[#1e293b] transition-colors"
+            className="btn-press text-xs font-[DM_Mono] border border-[#334155] text-[#94a3b8]
+                       px-3 py-1.5 rounded-lg hover:bg-[#273549] transition-colors"
           >
             ↓ CSV
           </button>
         </div>
       </header>
 
-      {/* Score summary */}
-      <div className="flex items-center justify-center gap-8 py-5 border-b border-[#334155]">
-        <div className="text-center">
-          <div className="text-5xl font-black text-[#f1f5f9] font-[Barlow_Condensed]">{game.ourScore}</div>
-          <div className="text-xs text-[#94a3b8] font-[DM_Mono] uppercase">Us</div>
+      {/* Score summary with result atmosphere */}
+      <div className="relative flex items-center justify-center gap-8 py-6 border-b border-[#334155] overflow-hidden">
+        {/* Atmospheric result wash */}
+        <div className="absolute inset-0 pointer-events-none"
+          style={{
+            background: won
+              ? 'radial-gradient(ellipse at 30% 50%, rgba(34,197,94,0.08) 0%, transparent 65%)'
+              : lost
+              ? 'radial-gradient(ellipse at 70% 50%, rgba(239,68,68,0.08) 0%, transparent 65%)'
+              : 'none',
+          }} />
+        <div className="relative text-center">
+          <div className={`text-6xl font-black font-[Barlow_Condensed] tabular-nums
+            ${won ? 'text-[#22c55e]' : lost ? 'text-[#ef4444]' : 'text-[#f1f5f9]'}`}>
+            {game.ourScore}
+          </div>
+          <div className="text-[10px] text-[#94a3b8] font-[DM_Mono] uppercase tracking-widest mt-1">Us</div>
         </div>
-        <div className="text-[#64748b] font-[Barlow_Condensed] text-2xl">—</div>
-        <div className="text-center">
-          <div className="text-5xl font-black text-[#f1f5f9] font-[Barlow_Condensed]">{game.theirScore}</div>
-          <div className="text-xs text-[#94a3b8] font-[DM_Mono] uppercase">{game.opponent}</div>
+        <div className="relative flex flex-col items-center gap-1">
+          <div className="text-[#334155] font-[Barlow_Condensed] text-2xl">—</div>
+          {game.isComplete && (
+            <span className={`text-[9px] font-black font-[Barlow_Condensed] uppercase tracking-widest px-2 py-0.5 rounded
+              ${won ? 'text-[#22c55e] bg-[#166534]/30' : lost ? 'text-[#ef4444] bg-[#7f1d1d]/30' : 'text-[#94a3b8] bg-[#334155]/30'}`}>
+              {won ? 'W' : lost ? 'L' : 'T'}
+            </span>
+          )}
+        </div>
+        <div className="relative text-center">
+          <div className={`text-6xl font-black font-[Barlow_Condensed] tabular-nums
+            ${lost ? 'text-[#22c55e]' : won ? 'text-[#ef4444]' : 'text-[#f1f5f9]'}`}>
+            {game.theirScore}
+          </div>
+          <div className="text-[10px] text-[#94a3b8] font-[DM_Mono] uppercase tracking-widest mt-1 truncate max-w-[80px]">
+            {game.opponent}
+          </div>
         </div>
       </div>
 
@@ -108,7 +137,7 @@ export function GameStats() {
       <div className="flex border-b border-[#334155] bg-[#1e293b]">
         {(['players', 'timeline'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
-            className={`flex-1 py-2.5 text-xs font-bold font-[Barlow_Condensed] uppercase tracking-wide transition-colors
+            className={`btn-press flex-1 py-2.5 text-xs font-bold font-[Barlow_Condensed] uppercase tracking-wide transition-colors
               ${tab === t ? 'text-[#f1f5f9] border-b-2 border-[#22c55e]' : 'text-[#64748b] hover:text-[#94a3b8]'}`}>
             {t === 'players' ? 'Player Stats' : 'Timeline'}
           </button>
@@ -118,36 +147,42 @@ export function GameStats() {
       {/* Player stats table */}
       {tab === 'players' && (
         <div className="px-3 py-4 overflow-x-auto">
-          <p className="text-xs text-[#64748b] font-[DM_Mono] mb-2">Tap column to sort · Tap player for detail</p>
+          <p className="text-[10px] text-[#64748b] font-[DM_Mono] mb-2 uppercase tracking-wider">
+            Tap column to sort · Tap player for detail
+          </p>
           <table className="w-full text-xs font-[DM_Mono] border-collapse">
             <thead>
               <tr>
                 <th className="text-left pb-2 text-[#64748b] font-normal pr-3 uppercase tracking-wider">Player</th>
                 {COLS.map(c => (
                   <th key={c.key} onClick={() => setSortKey(c.key)}
-                    className={`pb-2 font-normal uppercase tracking-wider text-right pr-3 cursor-pointer
+                    className={`pb-2 font-normal uppercase tracking-wider text-right pr-3 cursor-pointer select-none
                       ${sortKey === c.key ? 'text-[#22c55e]' : 'text-[#64748b] hover:text-[#94a3b8]'}`}>
                     {c.label}
+                    {sortKey === c.key && <span className="ml-0.5">▼</span>}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {stats.map(s => (
-                <tr key={s.playerId} className="border-t border-[#334155]">
+                <tr key={s.playerId}
+                  className={`border-t border-[#334155] transition-colors
+                    ${sortKey !== 'plusMinus' ? '' : ''}`}>
                   <td className="py-2 pr-3">
                     <Link to={`/team/${game.teamId}/player/${s.playerId}`}
-                      className="font-[Barlow_Condensed] font-bold uppercase text-[#f1f5f9] text-sm
-                                 hover:text-[#22c55e] transition-colors no-underline">
+                      className="font-[Barlow_Condensed] font-black uppercase text-[#22c55e] text-sm
+                                 hover:text-[#4ade80] transition-colors no-underline">
                       {s.player.name}
                     </Link>
                   </td>
                   {COLS.map(c => (
                     <td key={c.key}
-                      className={`py-2 pr-3 text-right
+                      className={`py-2 pr-3 text-right tabular-nums
+                        ${c.key === sortKey ? 'text-[#f1f5f9] font-bold' : ''}
                         ${c.key === 'plusMinus'
                           ? (s[c.key] as number) >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'
-                          : 'text-[#f1f5f9]'}`}>
+                          : c.key !== sortKey ? 'text-[#94a3b8]' : ''}`}>
                       {fmt(c.key, s[c.key] as number)}
                     </td>
                   ))}
@@ -180,9 +215,9 @@ export function GameStats() {
 // ── Team efficiency bar ────────────────────────────────────────────────────
 function EfficiencyRow({ eff }: { eff: TeamEfficiency }) {
   return (
-    <div className="flex border-b border-[#334155]">
+    <div className="flex border-b border-[#334155]" style={{ background: '#131f35' }}>
       <div className="flex-1 flex flex-col items-center py-3 border-r border-[#334155]">
-        <div className="text-xs text-[#64748b] font-[DM_Mono] uppercase tracking-wider mb-1">O-Hold%</div>
+        <div className="text-[9px] text-[#64748b] font-[DM_Mono] uppercase tracking-widest mb-1">O-Hold%</div>
         <div className={`text-2xl font-black font-[Barlow_Condensed] leading-none
           ${eff.oHoldPct >= 0.7 ? 'text-[#22c55e]' : eff.oHoldPct >= 0.5 ? 'text-[#f59e0b]' : 'text-[#ef4444]'}`}>
           {(eff.oHoldPct * 100).toFixed(0)}%
@@ -192,7 +227,7 @@ function EfficiencyRow({ eff }: { eff: TeamEfficiency }) {
         </div>
       </div>
       <div className="flex-1 flex flex-col items-center py-3">
-        <div className="text-xs text-[#64748b] font-[DM_Mono] uppercase tracking-wider mb-1">D-Break%</div>
+        <div className="text-[9px] text-[#64748b] font-[DM_Mono] uppercase tracking-widest mb-1">D-Break%</div>
         <div className={`text-2xl font-black font-[Barlow_Condensed] leading-none
           ${eff.dBreakPct >= 0.4 ? 'text-[#22c55e]' : eff.dBreakPct >= 0.2 ? 'text-[#f59e0b]' : 'text-[#ef4444]'}`}>
           {(eff.dBreakPct * 100).toFixed(0)}%
@@ -211,23 +246,25 @@ function TimelineRow({ ke, playerName }: { ke: KeyEvent; playerName: (id?: strin
   const isCallahan = ke.type === 'callahan'
 
   return (
-    <div className={`flex items-center gap-3 p-3 rounded-lg border
-      ${isCallahan ? 'border-[#f59e0b] bg-[#78350f]/30' :
-        isUs ? 'border-[#22c55e]/40 bg-[#166534]/20' :
-               'border-[#334155] bg-[#1e293b]'}`}>
-      <div className="text-lg w-7 text-center flex-shrink-0">
-        {isCallahan ? '⚡' : isUs ? '🏆' : '•'}
+    <div className={`flex items-center gap-3 p-3 rounded-xl border
+      ${isCallahan ? 'border-[#f59e0b] bg-[#78350f]/25' :
+        isUs ? 'border-[#22c55e]/30 bg-[#166534]/15' :
+               'border-[#2d3748] bg-[#1a2035]'}`}
+      style={{ boxShadow: isCallahan ? '0 0 12px rgba(245,158,11,0.15)' : isUs ? '0 0 8px rgba(34,197,94,0.08)' : 'none' }}>
+      <div className="text-xl w-8 text-center flex-shrink-0">
+        {isCallahan ? '⚡' : isUs ? '🏆' : <span className="text-[#475569] text-base font-black font-[Barlow_Condensed]">×</span>}
       </div>
       <div className="flex-1 min-w-0">
-        <div className={`text-sm font-bold font-[Barlow_Condensed] uppercase
-          ${isCallahan ? 'text-[#f59e0b]' : isUs ? 'text-[#22c55e]' : 'text-[#94a3b8]'}`}>
+        <div className={`text-sm font-black font-[Barlow_Condensed] uppercase
+          ${isCallahan ? 'text-[#f59e0b]' : isUs ? 'text-[#22c55e]' : 'text-[#64748b]'}`}>
           {isCallahan ? `Callahan — ${playerName(ke.scorerId)}` :
-           isUs ? `Goal — ${playerName(ke.scorerId)}${ke.assistId ? ` (${playerName(ke.assistId)})` : ''}` :
-           'Their goal'}
+           isUs ? `Goal — ${playerName(ke.scorerId)}${ke.assistId ? ` from ${playerName(ke.assistId)}` : ''}` :
+           `Their goal`}
         </div>
-        <div className="text-xs text-[#64748b] font-[DM_Mono]">Point {ke.pointNumber}</div>
+        <div className="text-[10px] text-[#475569] font-[DM_Mono] mt-0.5">Point {ke.pointNumber}</div>
       </div>
-      <div className="text-sm font-black font-[Barlow_Condensed] text-[#f1f5f9] tabular-nums flex-shrink-0">
+      <div className={`text-base font-black font-[Barlow_Condensed] tabular-nums flex-shrink-0
+        ${isUs ? 'text-[#22c55e]' : 'text-[#94a3b8]'}`}>
         {ke.ourScoreAfter}–{ke.theirScoreAfter}
       </div>
     </div>
