@@ -27,6 +27,7 @@ export function Team() {
   const [gOpponent, setGOpponent] = useState('')
   const [gDate, setGDate] = useState(new Date().toISOString().slice(0, 10))
   const [gLocation, setGLocation] = useState('')
+  const [gWind, setGWind] = useState<import('../types').WindDirection | ''>('')
 
   useEffect(() => {
     loadTeams()
@@ -69,8 +70,9 @@ export function Team() {
       opponent: gOpponent.trim(),
       date: new Date(gDate),
       location: gLocation.trim() || undefined,
+      windDirection: gWind || null,
     })
-    setGOpponent(''); setGLocation(''); setShowGameForm(false)
+    setGOpponent(''); setGLocation(''); setGWind(''); setShowGameForm(false)
     navigate(`/game/${game.id}`)
   }
 
@@ -240,6 +242,25 @@ export function Team() {
                            text-[#f1f5f9] font-[Barlow_Condensed] text-base placeholder:text-[#64748b]
                            focus:outline-none focus:border-[#3b82f6]"
               />
+              {/* Wind direction */}
+              <div>
+                <div className="text-xs text-[#64748b] font-[DM_Mono] uppercase tracking-wider mb-2">
+                  Wind direction (optional)
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {(['N','NE','E','SE','S','SW','W','NW'] as const).map(d => (
+                    <button
+                      type="button" key={d} onClick={() => setGWind(gWind === d ? '' : d)}
+                      className={`py-1.5 rounded text-xs font-bold font-[DM_Mono] transition-colors
+                        ${gWind === d
+                          ? 'bg-[#3b82f6] text-white'
+                          : 'bg-[#273549] border border-[#334155] text-[#94a3b8] hover:border-[#3b82f6]'}`}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex gap-2">
                 <button type="submit"
                   className="flex-1 bg-[#3b82f6] text-white font-bold font-[Barlow_Condensed] uppercase py-2 rounded-lg">

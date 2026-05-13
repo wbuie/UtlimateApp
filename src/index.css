@@ -41,6 +41,19 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes score-pop {
+  0%   { transform: scale(1); color: #f1f5f9; }
+  30%  { transform: scale(1.45); color: #22c55e; }
+  60%  { transform: scale(1.25); color: #22c55e; }
+  100% { transform: scale(1); color: #f1f5f9; }
+}
+
+@keyframes possession-flash {
+  0%   { background-color: #1e3a5f; }
+  40%  { background-color: #3b82f6; }
+  100% { background-color: transparent; }
+}
+
 @layer base {
   html, body {
     background-color: #0f172a;

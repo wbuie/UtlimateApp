@@ -8,10 +8,13 @@ export function ActionPanel() {
     discHolder, possession, activePlayers, onFieldPlayerIds,
     playerPickerOpen, playerPickerContext,
     openPlayerPicker, closePlayerPicker,
+    subModalOpen, openSubModal, closeSubModal,
+    setOnField,
     logGoal, logThrowaway, logDrop, logStall,
     logD, logTheirDrop, logTheirStall, logCallahan,
     logTheirGoal, logPenalty,
     tapReceiver,
+    game,
   } = store
 
   const onField = activePlayers.filter(p => onFieldPlayerIds.includes(p.id))
@@ -137,14 +140,17 @@ export function ActionPanel() {
       )}
 
       {/* Always available */}
-      <div>
-        <div className="text-xs uppercase tracking-widest text-[#94a3b8] font-[DM_Mono] mb-2">
-          Other
+      {!game?.isComplete && (
+        <div>
+          <div className="text-xs uppercase tracking-widest text-[#94a3b8] font-[DM_Mono] mb-2">
+            Other
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <ActionBtn label="Penalty / Foul" color="amber" onClick={() => logPenalty()} />
+            <ActionBtn label="⇄ Change Line" color="blue" onClick={openSubModal} />
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <ActionBtn label="Penalty / Foul" color="amber" onClick={() => logPenalty()} />
-        </div>
-      </div>
+      )}
 
       {/* Player picker modal */}
       <Modal
@@ -158,6 +164,45 @@ export function ActionPanel() {
           skipOption={playerPickerContext !== 'callahan'}
           onSkip={handlePickerSkip}
         />
+      </Modal>
+
+      {/* Quick sub modal */}
+      <Modal open={subModalOpen} onClose={closeSubModal} title={`Change Line — ${onFieldPlayerIds.length}/7`}>
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          {activePlayers.filter(p => p.active).map(p => {
+            const on = onFieldPlayerIds.includes(p.id)
+            const full = onFieldPlayerIds.length >= 7 && !on
+            return (
+              <button
+                key={p.id}
+                disabled={full}
+                onClick={() => {
+                  const next = on
+                    ? onFieldPlayerIds.filter(id => id !== p.id)
+                    : [...onFieldPlayerIds, p.id]
+                  setOnField(next)
+                }}
+                className={`flex flex-col items-center py-3 px-2 rounded-lg border transition-colors disabled:opacity-30
+                  ${on
+                    ? 'border-[#22c55e] bg-[#166534] text-[#22c55e]'
+                    : 'border-[#334155] bg-[#273549] text-[#f1f5f9] hover:border-[#94a3b8]'}`}
+              >
+                <span className="text-xs text-[#94a3b8] font-[DM_Mono]">#{p.number}</span>
+                <span className="text-xs font-bold font-[Barlow_Condensed] uppercase leading-tight text-center">
+                  {p.name.split(' ')[0]}
+                </span>
+                {on && <span className="text-[9px] text-[#22c55e] font-[DM_Mono] mt-0.5">ON</span>}
+              </button>
+            )
+          })}
+        </div>
+        <button
+          onClick={closeSubModal}
+          className="w-full py-2.5 bg-[#22c55e] text-black font-black font-[Barlow_Condensed]
+                     uppercase tracking-widest rounded-lg"
+        >
+          Done
+        </button>
       </Modal>
     </div>
   )
