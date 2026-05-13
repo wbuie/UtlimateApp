@@ -233,3 +233,79 @@ function groupEventsByPoint(events: GameEvent[]): Record<string, GameEvent[]> {
   }
   return map
 }
+
+// ── Team efficiency summary ────────────────────────────────────────────────
+export interface TeamEfficiency {
+  oPoints: number
+  oHolds: number    // we score on O-line
+  oBreaksAgainst: number  // they score on our O-line
+  dPoints: number
+  dBreaks: number   // we score on D-line
+  dHolds: number    // they score on our D-line
+  oHoldPct: number
+  dBreakPct: number
+}
+
+export function calcTeamEfficiency(points: Point[], events: GameEvent[]): TeamEfficiency {
+  const eventsByPoint = groupEventsByPoint(events)
+  let oPoints = 0, oHolds = 0, oBreaksAgainst = 0
+  let dPoints = 0, dBreaks = 0, dHolds = 0
+
+  for (const pt of points) {
+    if (!pt.endedAt) continue
+    const ptEvents = (eventsByPoint[pt.id] ?? []).filter(e => !e.undone)
+    const weScored = ptEvents.some(e => e.type === 'goal' || e.type === 'callahan')
+    const theyScored = ptEvents.some(e => e.type === 'their_goal')
+
+    if (pt.line === 'O') {
+      oPoints++
+      if (weScored) oHolds++
+      if (theyScored) oBreaksAgainst++
+    } else {
+      dPoints++
+      if (weScored) dBreaks++
+      if (theyScored) dHolds++
+    }
+  }
+
+  return {
+    oPoints, oHolds, oBreaksAgainst, dPoints, dBreaks, dHolds,
+    oHoldPct: oPoints ? oHolds / oPoints : 0,
+    dBreakPct: dPoints ? dBreaks / dPoints : 0,
+  }
+}
+
+// ── Key events for game timeline ───────────────────────────────────────────
+export interface KeyEvent {
+  pointNumber: number
+  type: 'goal' | 'callahan' | 'their_goal'
+  scorerId?: string
+  assistId?: string
+  ourScoreAfter: number
+  theirScoreAfter: number
+}
+
+export function calcKeyEvents(points: Point[], events: GameEvent[]): KeyEvent[] {
+  const eventsByPoint = groupEventsByPoint(events)
+  const result: KeyEvent[] = []
+  let ourScore = 0
+  let theirScore = 0
+
+  for (const pt of [...points].sort((a, b) => a.pointNumber - b.pointNumber)) {
+    if (!pt.endedAt) continue
+    const ptEvents = (eventsByPoint[pt.id] ?? []).filter(e => !e.undone)
+    for (const e of ptEvents) {
+      if (e.type === 'goal') {
+        ourScore++
+        result.push({ pointNumber: pt.pointNumber, type: 'goal', scorerId: e.receiverId, assistId: e.throwerId, ourScoreAfter: ourScore, theirScoreAfter: theirScore })
+      } else if (e.type === 'callahan') {
+        ourScore++
+        result.push({ pointNumber: pt.pointNumber, type: 'callahan', scorerId: e.receiverId, ourScoreAfter: ourScore, theirScoreAfter: theirScore })
+      } else if (e.type === 'their_goal') {
+        theirScore++
+        result.push({ pointNumber: pt.pointNumber, type: 'their_goal', ourScoreAfter: ourScore, theirScoreAfter: theirScore })
+      }
+    }
+  }
+  return result
+}

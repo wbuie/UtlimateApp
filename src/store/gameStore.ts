@@ -31,6 +31,8 @@ interface GameState {
   playerPickerOpen: boolean
   playerPickerContext: 'D' | 'drop' | 'their_drop' | 'callahan' | 'their_stall' | null
   pointStartTime: Date | null
+  scoreFlash: 'us' | 'them' | null   // triggers score animation
+  subModalOpen: boolean
 
   // Actions
   initGame: (game: Game, players: Player[], existingPoints: Point[], existingEvents: GameEvent[]) => void
@@ -48,9 +50,13 @@ interface GameState {
   logTheirGoal: () => Promise<void>
   logPenalty: (playerId?: string) => Promise<void>
   endPoint: () => Promise<void>
+  endGame: () => Promise<void>
   undoLast: () => Promise<void>
   openPlayerPicker: (ctx: GameState['playerPickerContext']) => void
   closePlayerPicker: () => void
+  openSubModal: () => void
+  closeSubModal: () => void
+  clearScoreFlash: () => void
   addToast: (msg: string) => void
   dismissToast: (id: string) => void
 }
@@ -72,6 +78,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerPickerOpen: false,
   playerPickerContext: null,
   pointStartTime: null,
+  scoreFlash: null,
+  subModalOpen: false,
 
   initGame(game, players, existingPoints, existingEvents) {
     const currentPoint = existingPoints.find(p => !p.endedAt) ?? null
@@ -129,7 +137,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const updatedGame: Game = { ...game, ourScore: game.ourScore + 1 }
     await upsertGame(updatedGame)
 
-    set(s => ({ events: [...s.events, evt], game: updatedGame }))
+    set(s => ({ events: [...s.events, evt], game: updatedGame, scoreFlash: 'us' }))
     get().addToast('🏆 GOAL!')
     await get().endPoint()
   },
@@ -210,7 +218,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const updatedGame: Game = { ...game, ourScore: game.ourScore + 1 }
     await upsertGame(updatedGame)
 
-    set(s => ({ events: [...s.events, evt], game: updatedGame }))
+    set(s => ({ events: [...s.events, evt], game: updatedGame, scoreFlash: 'us' }))
     get().addToast(`⚡ CALLAHAN — ${playerName(get(), playerId)}!`)
     await get().endPoint()
   },
@@ -225,7 +233,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const updatedGame: Game = { ...game, theirScore: game.theirScore + 1 }
     await upsertGame(updatedGame)
 
-    set(s => ({ events: [...s.events, evt], game: updatedGame }))
+    set(s => ({ events: [...s.events, evt], game: updatedGame, scoreFlash: 'them' }))
     get().addToast('Their goal')
     await get().endPoint()
   },
@@ -304,12 +312,39 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().addToast('Undone')
   },
 
+  async endGame() {
+    const { game, currentPoint } = get()
+    if (!game) return
+    const now = new Date()
+    if (currentPoint && !currentPoint.endedAt) {
+      const closed = { ...currentPoint, endedAt: now }
+      await upsertPoint(closed)
+      set(s => ({ points: s.points.map(p => p.id === closed.id ? closed : p) }))
+    }
+    const updatedGame: Game = { ...game, isComplete: true }
+    await upsertGame(updatedGame)
+    set({ game: updatedGame, currentPoint: null })
+    get().addToast('Game complete!')
+  },
+
   openPlayerPicker(ctx) {
     set({ playerPickerOpen: true, playerPickerContext: ctx })
   },
 
   closePlayerPicker() {
     set({ playerPickerOpen: false, playerPickerContext: null })
+  },
+
+  openSubModal() {
+    set({ subModalOpen: true })
+  },
+
+  closeSubModal() {
+    set({ subModalOpen: false })
+  },
+
+  clearScoreFlash() {
+    set({ scoreFlash: null })
   },
 
   addToast(message) {

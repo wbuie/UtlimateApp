@@ -2,33 +2,52 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getPlayers, getGames, getPoints, getEvents } from '../lib/db'
 import { calcPlayerStats, type PlayerStatRow } from '../lib/stats'
-import type { Player } from '../types'
+import { exportSeasonCsv } from '../lib/csvExport'
+import type { Player, Game } from '../types'
 
 type SortKey = keyof Omit<PlayerStatRow, 'playerId'>
 
+interface SeasonRow extends PlayerStatRow {
+  player: Player
+  gamesPlayed: number
+}
+
 export function SeasonStats() {
   const { teamId } = useParams<{ teamId: string }>()
-  const [, setPlayers] = useState<Player[]>([])
-  const [stats, setStats] = useState<(PlayerStatRow & { player: Player })[]>([])
+  const [teamName, setTeamName] = useState('')
+  const [stats, setStats] = useState<SeasonRow[]>([])
   const [sortKey, setSortKey] = useState<SortKey>('plusMinus')
   const [loading, setLoading] = useState(true)
+  const [allGames, setAllGames] = useState<Game[]>([])
 
   useEffect(() => {
     if (!teamId) return
     ;(async () => {
       const plrs = await getPlayers(teamId)
       const games = await getGames(teamId)
-      setPlayers(plrs)
+      setAllGames(games)
 
-      const allPoints = (await Promise.all(games.map(g => getPoints(g.id)))).flat()
-      const allEvents = (await Promise.all(games.map(g => getEvents(g.id)))).flat()
+      const pointsPerGame = await Promise.all(games.map(g => getPoints(g.id)))
+      const eventsPerGame = await Promise.all(games.map(g => getEvents(g.id)))
+      const pts = pointsPerGame.flat()
+      const evts = eventsPerGame.flat()
 
-      const rows = plrs
+      const rows: SeasonRow[] = plrs
         .filter(p => p.active)
-        .map(p => ({ player: p, ...calcPlayerStats(p.id, allPoints, allEvents) }))
-        .filter(s => s.pointsPlayed > 0)
+        .map(p => {
+          const gamesPlayed = games.filter((_, i) =>
+            calcPlayerStats(p.id, pointsPerGame[i], eventsPerGame[i]).pointsPlayed > 0
+          ).length
+          return { player: p, gamesPlayed, ...calcPlayerStats(p.id, pts, evts) }
+        })
+        .filter(r => r.pointsPlayed > 0)
 
       setStats(rows)
+      // grab team name from store fallback
+      const { useTeamStore } = await import('../store/teamStore')
+      const teamList = useTeamStore.getState().teams
+      const team = teamList.find(t => t.id === teamId)
+      setTeamName(team?.name ?? 'Team')
       setLoading(false)
     })()
   }, [teamId])
@@ -52,6 +71,10 @@ export function SeasonStats() {
     return `${val}`
   }
 
+  function handleExport() {
+    exportSeasonCsv(teamName, stats.map(s => ({ player: s.player, stats: s, gamesPlayed: s.gamesPlayed })))
+  }
+
   if (loading) return <div className="min-h-dvh flex items-center justify-center text-[#64748b] font-[DM_Mono]">Loading…</div>
 
   return (
@@ -59,26 +82,36 @@ export function SeasonStats() {
       <header className="bg-[#1e293b] border-b border-[#334155] px-4 py-4">
         <div className="flex items-center gap-3">
           <Link to={`/team/${teamId}`} className="text-[#94a3b8] hover:text-[#f1f5f9] text-xl">‹</Link>
-          <h1 className="text-xl font-bold text-[#f1f5f9] font-[Barlow_Condensed] uppercase leading-none">
-            Season Stats
-          </h1>
+          <div className="flex-1">
+            <h1 className="text-xl font-bold text-[#f1f5f9] font-[Barlow_Condensed] uppercase leading-none">
+              Season Stats
+            </h1>
+            <p className="text-xs text-[#64748b] font-[DM_Mono]">
+              {allGames.length} games · {stats.length} players
+            </p>
+          </div>
+          <button
+            onClick={handleExport}
+            className="text-xs font-[DM_Mono] border border-[#334155] text-[#94a3b8]
+                       px-3 py-1.5 rounded-lg hover:bg-[#273549] transition-colors"
+          >
+            ↓ CSV
+          </button>
         </div>
       </header>
 
       <div className="px-3 py-4 overflow-x-auto">
         <p className="text-xs text-[#64748b] font-[DM_Mono] mb-2">
-          {stats.length} players · {stats[0]?.pointsPlayed ?? 0}+ points played · Tap column to sort
+          Tap column to sort · Tap player for detail
         </p>
         <table className="w-full text-xs font-[DM_Mono] border-collapse">
           <thead>
             <tr>
               <th className="text-left pb-2 text-[#64748b] font-normal pr-3 uppercase tracking-wider">Player</th>
               {COLS.map(c => (
-                <th key={c.key}
-                  onClick={() => setSortKey(c.key)}
+                <th key={c.key} onClick={() => setSortKey(c.key)}
                   className={`pb-2 font-normal uppercase tracking-wider text-right pr-3 cursor-pointer
-                    ${sortKey === c.key ? 'text-[#22c55e]' : 'text-[#64748b] hover:text-[#94a3b8]'}`}
-                >
+                    ${sortKey === c.key ? 'text-[#22c55e]' : 'text-[#64748b] hover:text-[#94a3b8]'}`}>
                   {c.label}
                 </th>
               ))}
@@ -87,16 +120,19 @@ export function SeasonStats() {
           <tbody>
             {sorted.map(s => (
               <tr key={s.playerId} className="border-t border-[#334155]">
-                <td className="py-2 pr-3 font-[Barlow_Condensed] font-bold uppercase text-[#f1f5f9] text-sm">
-                  {s.player.name}
+                <td className="py-2 pr-3">
+                  <Link to={`/team/${teamId}/player/${s.playerId}`}
+                    className="font-[Barlow_Condensed] font-bold uppercase text-[#f1f5f9] text-sm
+                               hover:text-[#22c55e] transition-colors no-underline">
+                    {s.player.name}
+                  </Link>
                 </td>
                 {COLS.map(c => (
                   <td key={c.key}
                     className={`py-2 pr-3 text-right
                       ${c.key === 'plusMinus'
                         ? (s[c.key] as number) >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'
-                        : 'text-[#f1f5f9]'}`}
-                  >
+                        : 'text-[#f1f5f9]'}`}>
                     {fmt(c.key, s[c.key] as number)}
                   </td>
                 ))}
