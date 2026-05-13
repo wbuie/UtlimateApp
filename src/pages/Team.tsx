@@ -95,6 +95,11 @@ export function Team() {
               {team.name}
             </h1>
           </div>
+          <Link to={`/team/${team.id}/season`}
+            className="text-xs font-[DM_Mono] text-[#94a3b8] border border-[#334155]
+                       px-2 py-1 rounded hover:text-[#f1f5f9] no-underline">
+            Season Stats
+          </Link>
           <button
             onClick={async () => {
               if (confirm(`Delete ${team.name}?`)) {
