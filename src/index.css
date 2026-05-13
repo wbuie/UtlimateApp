@@ -29,11 +29,23 @@
   /* Animations */
   --animate-flash: flash 0.4s ease-out;
   --animate-toast-in: toast-in 0.2s ease-out;
+  --animate-fade-in: fade-in 0.15s ease-out;
+  --animate-slide-down: slide-down 0.2s ease-out;
 }
 
 @keyframes flash {
   0%   { background-color: #3b82f6; }
   100% { background-color: transparent; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes toast-in {
@@ -74,5 +86,21 @@
 
   input, button, select, textarea {
     font-family: inherit;
+  }
+
+  /* Card depth utility — apply to all elevated cards */
+  .card {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  }
+
+  /* Press feedback on interactive buttons */
+  .btn-press {
+    transition: transform 0.1s ease, opacity 0.1s ease;
+  }
+  .btn-press:active {
+    transform: scale(0.96);
+    opacity: 0.9;
   }
 }

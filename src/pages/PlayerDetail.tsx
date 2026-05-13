@@ -48,22 +48,30 @@ export function PlayerDetail() {
 
   return (
     <div className="min-h-dvh bg-[#0f172a] flex flex-col">
-      {/* Header */}
-      <header className="bg-[#1e293b] border-b border-[#334155] px-4 py-4">
-        <div className="flex items-center gap-3">
-          <Link to={`/team/${teamId}/season`} className="text-[#94a3b8] hover:text-[#f1f5f9] text-xl">‹</Link>
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <span className="text-[#64748b] font-[DM_Mono] text-sm">#{player.number}</span>
-              <h1 className="text-xl font-black text-[#f1f5f9] font-[Barlow_Condensed] uppercase leading-none">
-                {player.name}
-              </h1>
-              <span className="text-xs text-[#64748b] font-[DM_Mono] border border-[#334155] px-1.5 py-0.5 rounded">
-                {player.gender}
-              </span>
-            </div>
+      {/* Header with jersey number watermark */}
+      <header className="relative bg-[#1e293b] border-b border-[#334155] px-4 py-5 overflow-hidden"
+        style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.5)', minHeight: '80px' }}>
+        {/* Large jersey number watermark */}
+        {player.number && (
+          <div className="absolute right-4 top-1/2 -translate-y-1/2 font-black font-[Barlow_Condensed]
+                          leading-none select-none pointer-events-none"
+            style={{ fontSize: '6rem', color: '#334155', opacity: 0.45, lineHeight: 1 }}>
+            {player.number}
+          </div>
+        )}
+        {/* Radial accent */}
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse at 15% 50%, rgba(34,197,94,0.07) 0%, transparent 55%)' }} />
+        <div className="relative flex items-center gap-3">
+          <Link to={`/team/${teamId}/season`} className="text-[#94a3b8] hover:text-[#f1f5f9] text-xl transition-colors">‹</Link>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-black text-[#f1f5f9] font-[Barlow_Condensed] uppercase leading-none truncate">
+              {player.name}
+            </h1>
             <p className="text-xs text-[#64748b] font-[DM_Mono] mt-0.5">
               {gameRows.length} game{gameRows.length !== 1 ? 's' : ''} · {career.pointsPlayed} points played
+              {' · '}
+              <span className="text-[#475569]">{player.gender}</span>
             </p>
           </div>
         </div>
@@ -71,7 +79,7 @@ export function PlayerDetail() {
 
       {/* Career stat cards */}
       <div className="px-4 py-4">
-        <div className="text-xs uppercase tracking-widest text-[#64748b] font-[DM_Mono] mb-3">Career totals</div>
+        <div className="text-[10px] uppercase tracking-widest text-[#64748b] font-[DM_Mono] mb-3">Career totals</div>
         <div className="grid grid-cols-4 gap-2 mb-2">
           <StatCard label="Goals" value={career.goals} color="green" />
           <StatCard label="Assists" value={career.assists} color="green" />
@@ -94,53 +102,72 @@ export function PlayerDetail() {
 
       {/* Game-by-game */}
       <div className="px-4 pb-8">
-        <div className="text-xs uppercase tracking-widest text-[#64748b] font-[DM_Mono] mb-3">Game by game</div>
+        <div className="text-[10px] uppercase tracking-widest text-[#64748b] font-[DM_Mono] mb-3">Game by game</div>
         {gameRows.length === 0 ? (
           <p className="text-center text-[#64748b] font-[Barlow_Condensed] uppercase text-sm py-8">No games yet</p>
         ) : (
           <div className="flex flex-col gap-2">
-            {gameRows.map(row => (
-              <Link
-                key={row.game.id}
-                to={`/stats/${row.game.id}`}
-                className="bg-[#1e293b] border border-[#334155] rounded-xl p-3 no-underline
-                           hover:border-[#94a3b8] transition-colors"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <span className="text-sm font-bold text-[#f1f5f9] font-[Barlow_Condensed] uppercase">
-                      vs {row.game.opponent}
-                    </span>
-                    <span className="text-xs text-[#64748b] font-[DM_Mono] ml-2">
-                      {new Date(row.game.date).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <span className="text-xs font-[DM_Mono] text-[#94a3b8]">
-                    {row.game.ourScore}–{row.game.theirScore}
-                  </span>
-                </div>
-                <div className="grid grid-cols-6 gap-1 text-center">
-                  {[
-                    { label: 'G',   val: row.goals },
-                    { label: 'A',   val: row.assists },
-                    { label: 'D',   val: row.dBlocks },
-                    { label: '+/-', val: row.plusMinus, signed: true },
-                    { label: 'Thr', val: `${(row.throwPct * 100).toFixed(0)}%` },
-                    { label: 'Cat', val: `${(row.catchPct * 100).toFixed(0)}%` },
-                  ].map(c => (
-                    <div key={c.label} className="flex flex-col gap-0.5">
-                      <span className="text-[9px] text-[#64748b] font-[DM_Mono] uppercase">{c.label}</span>
-                      <span className={`text-sm font-bold font-[DM_Mono]
-                        ${c.label === '+/-'
-                          ? (row.plusMinus >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]')
-                          : 'text-[#f1f5f9]'}`}>
-                        {c.signed && typeof c.val === 'number' && c.val > 0 ? `+${c.val}` : c.val}
+            {gameRows.map(row => {
+              const won = row.game.ourScore > row.game.theirScore
+              const lost = row.game.ourScore < row.game.theirScore
+              return (
+                <Link
+                  key={row.game.id}
+                  to={`/stats/${row.game.id}`}
+                  className="rounded-xl p-3 no-underline hover:opacity-90 transition-opacity border-l-4"
+                  style={{
+                    background: '#1e293b',
+                    border: '1px solid #334155',
+                    borderLeft: `4px solid ${won ? '#22c55e' : lost ? '#ef4444' : '#334155'}`,
+                    boxShadow: '0 1px 6px rgba(0,0,0,0.3)',
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-2.5">
+                    <div>
+                      <span className="text-sm font-black text-[#f1f5f9] font-[Barlow_Condensed] uppercase">
+                        vs {row.game.opponent}
+                      </span>
+                      <span className="text-xs text-[#64748b] font-[DM_Mono] ml-2">
+                        {new Date(row.game.date).toLocaleDateString()}
                       </span>
                     </div>
-                  ))}
-                </div>
-              </Link>
-            ))}
+                    <div className="flex items-center gap-2">
+                      {row.game.isComplete && (
+                        <span className={`text-[9px] font-black font-[Barlow_Condensed] uppercase px-1.5 py-0.5 rounded
+                          ${won ? 'text-[#22c55e] bg-[#166534]/30' : lost ? 'text-[#ef4444] bg-[#7f1d1d]/30' : 'text-[#94a3b8] bg-[#334155]/30'}`}>
+                          {won ? 'W' : lost ? 'L' : 'T'}
+                        </span>
+                      )}
+                      <span className="font-[Barlow_Condensed] font-black text-sm">
+                        <span className={won ? 'text-[#22c55e]' : 'text-[#94a3b8]'}>{row.game.ourScore}</span>
+                        <span className="text-[#475569] mx-0.5">–</span>
+                        <span className={lost ? 'text-[#22c55e]' : 'text-[#94a3b8]'}>{row.game.theirScore}</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-6 gap-1 text-center">
+                    {[
+                      { label: 'G',   val: row.goals },
+                      { label: 'A',   val: row.assists },
+                      { label: 'D',   val: row.dBlocks },
+                      { label: '+/-', val: row.plusMinus, signed: true },
+                      { label: 'Thr', val: `${(row.throwPct * 100).toFixed(0)}%` },
+                      { label: 'Cat', val: `${(row.catchPct * 100).toFixed(0)}%` },
+                    ].map(c => (
+                      <div key={c.label} className="flex flex-col gap-0.5">
+                        <span className="text-[9px] text-[#64748b] font-[DM_Mono] uppercase">{c.label}</span>
+                        <span className={`text-sm font-bold font-[DM_Mono] tabular-nums
+                          ${c.label === '+/-'
+                            ? (row.plusMinus >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]')
+                            : 'text-[#f1f5f9]'}`}>
+                          {c.signed && typeof c.val === 'number' && c.val > 0 ? `+${c.val}` : c.val}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         )}
       </div>
@@ -159,12 +186,26 @@ interface StatCardProps {
 }
 
 function StatCard({ label, value, color, signed, pct, dec }: StatCardProps) {
-  const colorMap = {
+  const textColorMap = {
     green:   'text-[#22c55e]',
     red:     'text-[#ef4444]',
     blue:    'text-[#3b82f6]',
     amber:   'text-[#f59e0b]',
     default: 'text-[#f1f5f9]',
+  }
+  const bgColorMap = {
+    green:   'rgba(22,101,52,0.25)',
+    red:     'rgba(127,29,29,0.25)',
+    blue:    'rgba(30,58,95,0.35)',
+    amber:   'rgba(120,53,15,0.25)',
+    default: '#1e293b',
+  }
+  const borderColorMap = {
+    green:   '#166534',
+    red:     '#7f1d1d',
+    blue:    '#1e3a5f',
+    amber:   '#78350f',
+    default: '#334155',
   }
 
   let display: string
@@ -174,8 +215,13 @@ function StatCard({ label, value, color, signed, pct, dec }: StatCardProps) {
   else display = `${value}`
 
   return (
-    <div className="bg-[#1e293b] border border-[#334155] rounded-lg flex flex-col items-center py-3 px-1">
-      <span className={`text-xl font-black font-[Barlow_Condensed] leading-none ${colorMap[color]}`}>
+    <div className="rounded-lg flex flex-col items-center py-3 px-1"
+      style={{
+        background: bgColorMap[color],
+        border: `1px solid ${borderColorMap[color]}`,
+        boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+      }}>
+      <span className={`text-xl font-black font-[Barlow_Condensed] leading-none ${textColorMap[color]}`}>
         {display}
       </span>
       <span className="text-[9px] uppercase tracking-wider text-[#64748b] font-[DM_Mono] mt-1">
