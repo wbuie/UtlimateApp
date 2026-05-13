@@ -12,13 +12,15 @@ export function ActionPanel() {
     setOnField,
     logGoal, logThrowaway, logDrop, logStall,
     logD, logTheirDrop, logTheirStall, logCallahan,
-    logTheirGoal, logPenalty,
+    logTheirGoal, logPenalty, logTheirPass,
     tapReceiver,
     game,
+    theirPassCount,
   } = store
 
   const onField = activePlayers.filter(p => onFieldPlayerIds.includes(p.id))
   const discHolderPlayer = activePlayers.find(p => p.id === discHolder)
+  const lineShort = onFieldPlayerIds.length < 7
 
   function handlePickerConfirm(playerId: string) {
     closePlayerPicker()
@@ -44,85 +46,136 @@ export function ActionPanel() {
 
   return (
     <div className="flex flex-col gap-3 p-3">
-      {/* Throw flow — disc holder + receiver taps */}
-      <div className="rounded-xl p-3" style={{ background: '#1e293b', border: '1px solid #334155', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
-        <div className="text-[10px] uppercase tracking-widest font-[DM_Mono] mb-2.5"
-          style={{ color: discHolderPlayer ? '#3b82f6' : '#64748b' }}>
-          {discHolderPlayer
-            ? `${discHolderPlayer.name} has the disc — tap receiver`
-            : 'Tap to set disc holder / first receiver'}
-        </div>
-        <div className="grid grid-cols-4 gap-2">
-          {onField.map(p => (
-            <button
-              key={p.id}
-              onClick={() => tapReceiver(p.id)}
-              className={`btn-press flex flex-col items-center py-2.5 px-1 rounded-lg border transition-colors
-                ${discHolder === p.id
-                  ? 'border-[#3b82f6] bg-[#1e3a5f] text-[#3b82f6]'
-                  : 'border-[#334155] bg-[#273549] text-[#f1f5f9] hover:border-[#94a3b8]'}`}
-              style={discHolder === p.id ? { boxShadow: '0 0 8px rgba(59,130,246,0.35)' } : {}}
-            >
-              <span className="text-[9px] text-[#64748b] font-[DM_Mono]">#{p.number}</span>
-              <span className="text-xs font-bold font-[Barlow_Condensed] uppercase leading-tight text-center">
-                {p.name.split(' ')[0]}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
 
-      {/* Offense actions */}
-      {possession === 'us' && (
-        <div>
-          <div className="text-[10px] uppercase tracking-widest text-[#64748b] font-[DM_Mono] mb-2">
-            Offense
+      {/* Inline line selector — shown when fewer than 7 on field */}
+      {lineShort && (
+        <div className="rounded-xl p-3"
+          style={{ background: '#1a2a1a', border: '1px solid #166534', boxShadow: '0 0 8px rgba(34,197,94,0.1)' }}>
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-[10px] uppercase tracking-widest font-[DM_Mono] text-[#22c55e]">
+              Set your line
+            </span>
+            <span className={`text-sm font-black font-[Barlow_Condensed]
+              ${onFieldPlayerIds.length === 7 ? 'text-[#22c55e]' : 'text-[#f59e0b]'}`}>
+              {onFieldPlayerIds.length}/7
+            </span>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            {/* GOAL — biggest button, hero action */}
-            <ActionBtn
-              label="🏆 Goal"
-              color="green"
-              size="hero"
-              onClick={logGoal}
-              disabled={!discHolder}
-              className="col-span-2"
-            />
-            <ActionBtn label="Throwaway" color="red" size="md" onClick={logThrowaway} />
-            <ActionBtn label="Drop" color="red" size="md" onClick={() => openPlayerPicker('drop')} />
-            <ActionBtn label="Stall" color="red" size="sm" onClick={logStall} />
+          <div className="grid grid-cols-4 gap-1.5">
+            {activePlayers.filter(p => p.active).map(p => {
+              const on = onFieldPlayerIds.includes(p.id)
+              const full = onFieldPlayerIds.length >= 7 && !on
+              return (
+                <button
+                  key={p.id}
+                  disabled={full}
+                  onClick={() => {
+                    const next = on
+                      ? onFieldPlayerIds.filter(id => id !== p.id)
+                      : [...onFieldPlayerIds, p.id]
+                    setOnField(next)
+                  }}
+                  className={`btn-press flex flex-col items-center py-2 px-1 rounded-lg border transition-colors
+                    disabled:opacity-30 text-center
+                    ${on
+                      ? 'border-[#22c55e] bg-[#166534]/60 text-[#22c55e]'
+                      : 'border-[#334155] bg-[#273549] text-[#94a3b8] hover:border-[#94a3b8]'}`}
+                >
+                  <span className="text-[9px] font-[DM_Mono] opacity-60">#{p.number}</span>
+                  <span className="text-[11px] font-black font-[Barlow_Condensed] uppercase leading-tight">
+                    {p.name.split(' ')[0]}
+                  </span>
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
 
-      {/* Defense actions */}
+      {/* ── OFFENSE: throw flow ── */}
+      {possession === 'us' && (
+        <>
+          <div className="rounded-xl p-3"
+            style={{ background: '#1e293b', border: '1px solid #334155', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
+            <div className="text-[10px] uppercase tracking-widest font-[DM_Mono] mb-2.5"
+              style={{ color: discHolderPlayer ? '#3b82f6' : '#64748b' }}>
+              {discHolderPlayer
+                ? `${discHolderPlayer.name} has the disc — tap receiver`
+                : 'Tap to set disc holder / first receiver'}
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {onField.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => tapReceiver(p.id)}
+                  className={`btn-press flex flex-col items-center py-2.5 px-1 rounded-lg border transition-colors
+                    ${discHolder === p.id
+                      ? 'border-[#3b82f6] bg-[#1e3a5f] text-[#3b82f6]'
+                      : 'border-[#334155] bg-[#273549] text-[#f1f5f9] hover:border-[#94a3b8]'}`}
+                  style={discHolder === p.id ? { boxShadow: '0 0 8px rgba(59,130,246,0.35)' } : {}}
+                >
+                  <span className="text-[9px] text-[#64748b] font-[DM_Mono]">#{p.number}</span>
+                  <span className="text-xs font-bold font-[Barlow_Condensed] uppercase leading-tight text-center">
+                    {p.name.split(' ')[0]}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-[#64748b] font-[DM_Mono] mb-2">Offense</div>
+            <div className="grid grid-cols-2 gap-2">
+              <ActionBtn label="🏆 Goal" color="green" size="hero" onClick={logGoal}
+                disabled={!discHolder} className="col-span-2" />
+              <ActionBtn label="Throwaway" color="red" size="md" onClick={logThrowaway} />
+              <ActionBtn label="Drop" color="red" size="md" onClick={() => openPlayerPicker('drop')} />
+              <ActionBtn label="Stall" color="red" size="sm" onClick={logStall} />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── DEFENSE: opponent pass counter + D actions ── */}
       {possession === 'them' && (
-        <div>
-          <div className="text-[10px] uppercase tracking-widest text-[#64748b] font-[DM_Mono] mb-2">
-            Defense
+        <>
+          {/* Pass counter */}
+          <div className="rounded-xl p-4 flex items-center gap-4"
+            style={{ background: '#1e293b', border: '1px solid #334155', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>
+            <div className="flex-1">
+              <div className="text-[10px] uppercase tracking-widest text-[#64748b] font-[DM_Mono] mb-1">
+                Their passes
+              </div>
+              <div className="text-4xl font-black font-[Barlow_Condensed] text-[#94a3b8] tabular-nums leading-none">
+                {theirPassCount}
+              </div>
+            </div>
+            <button
+              onClick={logTheirPass}
+              className="btn-press w-20 h-16 rounded-xl border border-[#334155] bg-[#273549]
+                         text-[#94a3b8] font-black font-[Barlow_Condensed] text-2xl
+                         hover:border-[#94a3b8] hover:text-[#f1f5f9] transition-colors"
+            >
+              +1
+            </button>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <ActionBtn label="D Block" color="green" size="md" onClick={() => openPlayerPicker('D')} />
-            <ActionBtn label="Their Drop" color="green" size="md" onClick={() => openPlayerPicker('their_drop')} />
-            <ActionBtn label="Their Stall" color="green" size="sm" onClick={() => openPlayerPicker('their_stall')} />
-            <ActionBtn label="⚡ Callahan" color="amber" size="md" onClick={() => openPlayerPicker('callahan')} />
-            <ActionBtn
-              label="Their Goal"
-              color="red"
-              size="md"
-              onClick={logTheirGoal}
-              className="col-span-2"
-            />
+
+          <div>
+            <div className="text-[10px] uppercase tracking-widest text-[#64748b] font-[DM_Mono] mb-2">Defense</div>
+            <div className="grid grid-cols-2 gap-2">
+              <ActionBtn label="D Block" color="green" size="md" onClick={() => openPlayerPicker('D')} />
+              <ActionBtn label="Their Drop" color="green" size="md" onClick={() => openPlayerPicker('their_drop')} />
+              <ActionBtn label="Their Stall" color="green" size="sm" onClick={() => openPlayerPicker('their_stall')} />
+              <ActionBtn label="⚡ Callahan" color="amber" size="md" onClick={() => openPlayerPicker('callahan')} />
+              <ActionBtn label="Their Goal" color="red" size="md" onClick={logTheirGoal} className="col-span-2" />
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Always available */}
       {!game?.isComplete && (
         <div>
-          <div className="text-[10px] uppercase tracking-widest text-[#64748b] font-[DM_Mono] mb-2">
-            Other
-          </div>
+          <div className="text-[10px] uppercase tracking-widest text-[#64748b] font-[DM_Mono] mb-2">Other</div>
           <div className="grid grid-cols-2 gap-2">
             <ActionBtn label="Penalty / Foul" color="amber" size="sm" onClick={() => logPenalty()} />
             <ActionBtn label="⇄ Change Line" color="blue" size="sm" onClick={openSubModal} />
@@ -131,11 +184,7 @@ export function ActionPanel() {
       )}
 
       {/* Player picker modal */}
-      <Modal
-        open={playerPickerOpen}
-        onClose={closePlayerPicker}
-        title={pickerTitle(playerPickerContext)}
-      >
+      <Modal open={playerPickerOpen} onClose={closePlayerPicker} title={pickerTitle(playerPickerContext)}>
         <PlayerChipGrid
           players={onField}
           onSelect={handlePickerConfirm}
@@ -174,11 +223,9 @@ export function ActionPanel() {
             )
           })}
         </div>
-        <button
-          onClick={closeSubModal}
+        <button onClick={closeSubModal}
           className="btn-press w-full py-2.5 bg-[#22c55e] text-black font-black font-[Barlow_Condensed]
-                     uppercase tracking-widest rounded-lg"
-        >
+                     uppercase tracking-widest rounded-lg">
           Done
         </button>
       </Modal>
@@ -186,7 +233,7 @@ export function ActionPanel() {
   )
 }
 
-// ── Sub components ─────────────────────────────────────
+// ── Sub components ──────────────────────────────────────────────────────────
 
 interface ActionBtnProps {
   label: string
@@ -225,11 +272,11 @@ function ActionBtn({ label, color, size, onClick, disabled, className = '' }: Ac
 
 function pickerTitle(ctx: string | null): string {
   switch (ctx) {
-    case 'D':          return 'Who got the D?'
-    case 'drop':       return 'Who dropped it?'
-    case 'their_drop': return 'Who picked it up?'
-    case 'callahan':   return 'Who scored the Callahan?'
+    case 'D':           return 'Who got the D?'
+    case 'drop':        return 'Who dropped it?'
+    case 'their_drop':  return 'Who picked it up?'
+    case 'callahan':    return 'Who scored the Callahan?'
     case 'their_stall': return 'Who recovered the disc?'
-    default:           return 'Select Player'
+    default:            return 'Select Player'
   }
 }

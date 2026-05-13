@@ -25,6 +25,7 @@ interface GameState {
   line: LineType
   discHolder: string | null   // player id who has the disc
   lastThrower: string | null  // for assist tracking on goal
+  theirPassCount: number      // opponent passes on current defensive possession
 
   // UI state
   toasts: Toast[]
@@ -48,8 +49,9 @@ interface GameState {
   logTheirStall: () => Promise<void>
   logCallahan: (playerId: string) => Promise<void>
   logTheirGoal: () => Promise<void>
+  logTheirPass: () => Promise<void>
   logPenalty: (playerId?: string) => Promise<void>
-  endPoint: () => Promise<void>
+  endPoint: (scoredBy?: 'us' | 'them') => Promise<void>
   endGame: () => Promise<void>
   undoLast: () => Promise<void>
   openPlayerPicker: (ctx: GameState['playerPickerContext']) => void
@@ -74,6 +76,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   line: 'D',
   discHolder: null,
   lastThrower: null,
+  theirPassCount: 0,
   toasts: [],
   playerPickerOpen: false,
   playerPickerContext: null,
@@ -139,7 +142,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     set(s => ({ events: [...s.events, evt], game: updatedGame, scoreFlash: 'us' }))
     get().addToast('🏆 GOAL!')
-    await get().endPoint()
+    await get().endPoint('us')
   },
 
   async logThrowaway() {
@@ -148,7 +151,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const evt = buildEvent('throwaway', currentPoint.id, game.id, { throwerId: discHolder ?? undefined })
     await upsertEvent(evt)
-    set(s => ({ events: [...s.events, evt], discHolder: null, lastThrower: null }))
+    set(s => ({ events: [...s.events, evt], discHolder: null, lastThrower: null, theirPassCount: 0 }))
     swapPossession(set)
     get().addToast('Throwaway — they have it')
   },
@@ -159,7 +162,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const evt = buildEvent('drop', currentPoint.id, game.id, { throwerId: discHolder ?? undefined, receiverId: playerId })
     await upsertEvent(evt)
-    set(s => ({ events: [...s.events, evt], discHolder: null, lastThrower: null }))
+    set(s => ({ events: [...s.events, evt], discHolder: null, lastThrower: null, theirPassCount: 0 }))
     swapPossession(set)
     get().addToast(`Drop — they have it`)
   },
@@ -170,7 +173,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const evt = buildEvent('stall', currentPoint.id, game.id, { throwerId: discHolder ?? undefined })
     await upsertEvent(evt)
-    set(s => ({ events: [...s.events, evt], discHolder: null, lastThrower: null }))
+    set(s => ({ events: [...s.events, evt], discHolder: null, lastThrower: null, theirPassCount: 0 }))
     swapPossession(set)
     get().addToast('Stall — they have it')
   },
@@ -181,9 +184,17 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const evt = buildEvent('D', currentPoint.id, game.id, { receiverId: playerId })
     await upsertEvent(evt)
-    set(s => ({ events: [...s.events, evt], discHolder: playerId, lastThrower: null }))
+    set(s => ({ events: [...s.events, evt], discHolder: playerId, lastThrower: null, theirPassCount: 0 }))
     swapPossession(set)
     get().addToast(`D block — ${playerName(get(), playerId)} has it`)
+  },
+
+  async logTheirPass() {
+    const { currentPoint, game } = get()
+    if (!game || !currentPoint) return
+    const evt = buildEvent('their_pass', currentPoint.id, game.id, {})
+    await upsertEvent(evt)
+    set(s => ({ events: [...s.events, evt], theirPassCount: s.theirPassCount + 1 }))
   },
 
   async logTheirDrop(playerId) {
@@ -192,7 +203,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const evt = buildEvent('their_drop', currentPoint.id, game.id, { receiverId: playerId })
     await upsertEvent(evt)
-    set(s => ({ events: [...s.events, evt], discHolder: playerId ?? null, lastThrower: null }))
+    set(s => ({ events: [...s.events, evt], discHolder: playerId ?? null, lastThrower: null, theirPassCount: 0 }))
     swapPossession(set)
     get().addToast('Their drop — we have it')
   },
@@ -203,7 +214,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const evt = buildEvent('their_stall', currentPoint.id, game.id, {})
     await upsertEvent(evt)
-    set(s => ({ events: [...s.events, evt], discHolder: null, lastThrower: null }))
+    set(s => ({ events: [...s.events, evt], discHolder: null, lastThrower: null, theirPassCount: 0 }))
     swapPossession(set)
     get().addToast('Their stall — we have it')
   },
@@ -220,7 +231,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     set(s => ({ events: [...s.events, evt], game: updatedGame, scoreFlash: 'us' }))
     get().addToast(`⚡ CALLAHAN — ${playerName(get(), playerId)}!`)
-    await get().endPoint()
+    await get().endPoint('us')
   },
 
   async logTheirGoal() {
@@ -235,7 +246,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     set(s => ({ events: [...s.events, evt], game: updatedGame, scoreFlash: 'them' }))
     get().addToast('Their goal')
-    await get().endPoint()
+    await get().endPoint('them')
   },
 
   async logPenalty(playerId) {
@@ -248,7 +259,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().addToast('Penalty / foul recorded')
   },
 
-  async endPoint() {
+  async endPoint(scoredBy?: 'us' | 'them') {
     const { currentPoint, points, line, onFieldPlayerIds, game } = get()
     if (!game || !currentPoint) return
 
@@ -256,7 +267,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     const closedPoint: Point = { ...currentPoint, endedAt: now }
     await upsertPoint(closedPoint)
 
-    const nextLine: LineType = line  // keep same line for now
+    // Auto-switch O/D for next point:
+    // We scored → we pull → they receive → we're on D next
+    // They scored → they pull → we receive → we're on O next
+    // No score (manual end) → keep current line
+    const nextLine: LineType = scoredBy === 'us' ? 'D' : scoredBy === 'them' ? 'O' : line
+    const nextPossession: Possession = scoredBy === 'them' ? 'us' : 'them'
+
     const nextPoint: Point = {
       id: genId(),
       gameId: game.id,
@@ -273,7 +290,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       currentPoint: nextPoint,
       discHolder: null,
       lastThrower: null,
-      possession: 'them',
+      theirPassCount: 0,
+      possession: nextPossession,
+      line: nextLine,
       pointStartTime: now,
     })
   },

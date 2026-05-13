@@ -8,6 +8,7 @@ export type EventType =
   | 'D'
   | 'their_drop'
   | 'their_stall'
+  | 'their_pass'
   | 'callahan'
   | 'their_goal'
   | 'penalty'
