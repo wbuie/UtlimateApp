@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useTeamStore } from '../store/teamStore'
+import { Modal } from '../components/shared/Modal'
+import { exportTeamBackup } from '../lib/backup'
 import type { Player } from '../types'
 
 export function Team() {
@@ -18,6 +20,8 @@ export function Team() {
   const [showGameForm, setShowGameForm] = useState(false)
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null)
   const [confirmDeleteTeam, setConfirmDeleteTeam] = useState(false)
+  const [confirmDeletePlayer, setConfirmDeletePlayer] = useState<Player | null>(null)
+  const [confirmDeleteGame, setConfirmDeleteGame] = useState<import('../types').Game | null>(null)
 
   // Player form state
   const [pName, setPName] = useState('')
@@ -29,6 +33,7 @@ export function Team() {
   const [gDate, setGDate] = useState(new Date().toISOString().slice(0, 10))
   const [gLocation, setGLocation] = useState('')
   const [gWind, setGWind] = useState<import('../types').WindDirection | ''>('')
+  const [gTarget, setGTarget] = useState(15)
 
   useEffect(() => {
     loadTeams()
@@ -36,7 +41,7 @@ export function Team() {
       loadPlayers(teamId)
       loadGames(teamId)
     }
-  }, [teamId])
+  }, [teamId, loadTeams, loadPlayers, loadGames])
 
   const team = teams.find(t => t.id === teamId)
   const teamPlayers = players[teamId ?? ''] ?? []
@@ -72,8 +77,9 @@ export function Team() {
       date: new Date(gDate),
       location: gLocation.trim() || undefined,
       windDirection: gWind || null,
+      targetScore: gTarget,
     })
-    setGOpponent(''); setGLocation(''); setGWind(''); setShowGameForm(false)
+    setGOpponent(''); setGLocation(''); setGWind(''); setGTarget(15); setShowGameForm(false)
     navigate(`/game/${game.id}`)
   }
 
@@ -99,6 +105,14 @@ export function Team() {
               {team.name}
             </h1>
           </div>
+          <button
+            onClick={() => exportTeamBackup(team)}
+            aria-label="Export team backup"
+            className="btn-press text-xs font-[DM_Mono] text-[#94a3b8] border border-[#334155]
+                       px-3 py-1.5 rounded-lg hover:bg-[#273549] transition-colors whitespace-nowrap"
+          >
+            ↓ Backup
+          </button>
           {/* Season Stats — distinct from Delete */}
           <Link to={`/team/${team.id}/season`}
             className="btn-press text-xs font-[DM_Mono] text-[#22c55e] border border-[#166534]
@@ -243,7 +257,7 @@ export function Team() {
                       className="btn-press text-[#94a3b8] text-xs font-[DM_Mono] hover:text-[#f1f5f9] transition-colors">
                       Edit
                     </button>
-                    <button onClick={() => removePlayer(p.id, team.id)}
+                    <button onClick={() => setConfirmDeletePlayer(p)} aria-label={`Delete ${p.name}`}
                       className="btn-press text-[#ef4444] text-xs font-[DM_Mono]">
                       ✕
                     </button>
@@ -293,6 +307,24 @@ export function Team() {
                            text-[#f1f5f9] font-[Barlow_Condensed] text-base placeholder:text-[#64748b]
                            focus:outline-none focus:border-[#3b82f6]"
               />
+              <div>
+                <div className="text-xs text-[#64748b] font-[DM_Mono] uppercase tracking-wider mb-2">
+                  Game to (halftime is auto-detected)
+                </div>
+                <div className="flex gap-1.5">
+                  {[11, 13, 15, 17].map(n => (
+                    <button
+                      type="button" key={n} onClick={() => setGTarget(n)}
+                      className={`btn-press flex-1 py-1.5 rounded text-sm font-bold font-[DM_Mono] transition-colors
+                        ${gTarget === n
+                          ? 'bg-[#3b82f6] text-white'
+                          : 'bg-[#273549] border border-[#334155] text-[#94a3b8] hover:border-[#3b82f6]'}`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div>
                 <div className="text-xs text-[#64748b] font-[DM_Mono] uppercase tracking-wider mb-2">
                   Wind direction (optional)
@@ -367,7 +399,7 @@ export function Team() {
                         className="btn-press text-[#94a3b8] text-xs font-[DM_Mono] hover:text-[#f1f5f9] no-underline transition-colors">
                         Stats
                       </Link>
-                      <button onClick={() => removeGame(g.id, team.id)}
+                      <button onClick={() => setConfirmDeleteGame(g)} aria-label={`Delete game vs ${g.opponent}`}
                         className="btn-press text-[#ef4444] text-xs font-[DM_Mono]">
                         ✕
                       </button>
@@ -379,6 +411,51 @@ export function Team() {
           </div>
         </div>
       )}
+
+      {/* Delete player confirmation */}
+      <Modal open={confirmDeletePlayer !== null} onClose={() => setConfirmDeletePlayer(null)}
+        title={`Delete ${confirmDeletePlayer?.name}?`}>
+        <p className="text-xs text-[#64748b] font-[DM_Mono] mb-4">
+          Their recorded stats stay in past games, but they'll be removed from the roster.
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              if (confirmDeletePlayer) await removePlayer(confirmDeletePlayer.id, team.id)
+              setConfirmDeletePlayer(null)
+            }}
+            className="btn-press flex-1 bg-[#ef4444] text-white font-bold font-[Barlow_Condensed] uppercase py-2.5 rounded-lg">
+            Delete
+          </button>
+          <button onClick={() => setConfirmDeletePlayer(null)}
+            className="btn-press flex-1 border border-[#334155] text-[#94a3b8] font-bold font-[Barlow_Condensed] uppercase py-2.5 rounded-lg">
+            Cancel
+          </button>
+        </div>
+      </Modal>
+
+      {/* Delete game confirmation */}
+      <Modal open={confirmDeleteGame !== null} onClose={() => setConfirmDeleteGame(null)}
+        title={`Delete game vs ${confirmDeleteGame?.opponent}?`}>
+        <p className="text-xs text-[#64748b] font-[DM_Mono] mb-4">
+          This permanently removes the game and every point and event recorded in it.
+          It cannot be undone.
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              if (confirmDeleteGame) await removeGame(confirmDeleteGame.id, team.id)
+              setConfirmDeleteGame(null)
+            }}
+            className="btn-press flex-1 bg-[#ef4444] text-white font-bold font-[Barlow_Condensed] uppercase py-2.5 rounded-lg">
+            Delete Game
+          </button>
+          <button onClick={() => setConfirmDeleteGame(null)}
+            className="btn-press flex-1 border border-[#334155] text-[#94a3b8] font-bold font-[Barlow_Condensed] uppercase py-2.5 rounded-lg">
+            Cancel
+          </button>
+        </div>
+      </Modal>
     </div>
   )
 }

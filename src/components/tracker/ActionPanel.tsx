@@ -3,7 +3,6 @@ import { PlayerChipGrid } from './PlayerChipGrid'
 import { Modal } from '../shared/Modal'
 
 export function ActionPanel() {
-  const store = useGameStore()
   const {
     discHolder, possession, activePlayers, onFieldPlayerIds,
     playerPickerOpen, playerPickerContext,
@@ -12,15 +11,13 @@ export function ActionPanel() {
     setOnField,
     logGoal, logThrowaway, logDrop, logStall,
     logD, logTheirDrop, logTheirStall, logCallahan,
-    logTheirGoal, logPenalty, logTheirPass,
+    logTheirGoal, logPenalty, logTheirPass, logTimeout,
     tapReceiver,
-    game,
     theirPassCount,
-  } = store
+  } = useGameStore()
 
   const onField = activePlayers.filter(p => onFieldPlayerIds.includes(p.id))
   const discHolderPlayer = activePlayers.find(p => p.id === discHolder)
-  const lineShort = onFieldPlayerIds.length < 7
 
   function handlePickerConfirm(playerId: string) {
     closePlayerPicker()
@@ -29,67 +26,21 @@ export function ActionPanel() {
       case 'drop':       logDrop(playerId); break
       case 'their_drop': logTheirDrop(playerId); break
       case 'callahan':   logCallahan(playerId); break
-      case 'their_stall': logTheirStall(); break
     }
   }
 
   function handlePickerSkip() {
     closePlayerPicker()
     switch (playerPickerContext) {
-      case 'D':          logD(''); break
-      case 'drop':       logDrop(''); break
+      case 'D':          logD(); break
+      case 'drop':       logDrop(); break
       case 'their_drop': logTheirDrop(); break
       case 'callahan':   break
-      case 'their_stall': logTheirStall(); break
     }
   }
 
   return (
     <div className="flex flex-col gap-3 p-3">
-
-      {/* Inline line selector — shown when fewer than 7 on field */}
-      {lineShort && (
-        <div className="rounded-xl p-3"
-          style={{ background: '#1a2a1a', border: '1px solid #166534', boxShadow: '0 0 8px rgba(34,197,94,0.1)' }}>
-          <div className="flex items-center justify-between mb-2.5">
-            <span className="text-[10px] uppercase tracking-widest font-[DM_Mono] text-[#22c55e]">
-              Set your line
-            </span>
-            <span className={`text-sm font-black font-[Barlow_Condensed]
-              ${onFieldPlayerIds.length === 7 ? 'text-[#22c55e]' : 'text-[#f59e0b]'}`}>
-              {onFieldPlayerIds.length}/7
-            </span>
-          </div>
-          <div className="grid grid-cols-4 gap-1.5">
-            {activePlayers.filter(p => p.active).map(p => {
-              const on = onFieldPlayerIds.includes(p.id)
-              const full = onFieldPlayerIds.length >= 7 && !on
-              return (
-                <button
-                  key={p.id}
-                  disabled={full}
-                  onClick={() => {
-                    const next = on
-                      ? onFieldPlayerIds.filter(id => id !== p.id)
-                      : [...onFieldPlayerIds, p.id]
-                    setOnField(next)
-                  }}
-                  className={`btn-press flex flex-col items-center py-2 px-1 rounded-lg border transition-colors
-                    disabled:opacity-30 text-center
-                    ${on
-                      ? 'border-[#22c55e] bg-[#166534]/60 text-[#22c55e]'
-                      : 'border-[#334155] bg-[#273549] text-[#94a3b8] hover:border-[#94a3b8]'}`}
-                >
-                  <span className="text-[9px] font-[DM_Mono] opacity-60">#{p.number}</span>
-                  <span className="text-[11px] font-black font-[Barlow_Condensed] uppercase leading-tight">
-                    {p.name.split(' ')[0]}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-      )}
 
       {/* ── OFFENSE: throw flow ── */}
       {possession === 'us' && (
@@ -164,7 +115,7 @@ export function ActionPanel() {
             <div className="grid grid-cols-2 gap-2">
               <ActionBtn label="D Block" color="green" size="md" onClick={() => openPlayerPicker('D')} />
               <ActionBtn label="Their Drop" color="green" size="md" onClick={() => openPlayerPicker('their_drop')} />
-              <ActionBtn label="Their Stall" color="green" size="sm" onClick={() => openPlayerPicker('their_stall')} />
+              <ActionBtn label="Their Stall" color="green" size="sm" onClick={logTheirStall} />
               <ActionBtn label="⚡ Callahan" color="amber" size="md" onClick={() => openPlayerPicker('callahan')} />
               <ActionBtn label="Their Goal" color="red" size="md" onClick={logTheirGoal} className="col-span-2" />
             </div>
@@ -173,15 +124,14 @@ export function ActionPanel() {
       )}
 
       {/* Always available */}
-      {!game?.isComplete && (
-        <div>
-          <div className="text-[10px] uppercase tracking-widest text-[#64748b] font-[DM_Mono] mb-2">Other</div>
-          <div className="grid grid-cols-2 gap-2">
-            <ActionBtn label="Penalty / Foul" color="amber" size="sm" onClick={() => logPenalty()} />
-            <ActionBtn label="⇄ Change Line" color="blue" size="sm" onClick={openSubModal} />
-          </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-widest text-[#64748b] font-[DM_Mono] mb-2">Other</div>
+        <div className="grid grid-cols-3 gap-2">
+          <ActionBtn label="Penalty" color="amber" size="sm" onClick={() => logPenalty()} />
+          <ActionBtn label="Timeout" color="amber" size="sm" onClick={logTimeout} />
+          <ActionBtn label="⇄ Sub" color="blue" size="sm" onClick={openSubModal} />
         </div>
-      )}
+      </div>
 
       {/* Player picker modal */}
       <Modal open={playerPickerOpen} onClose={closePlayerPicker} title={pickerTitle(playerPickerContext)}>
@@ -193,8 +143,11 @@ export function ActionPanel() {
         />
       </Modal>
 
-      {/* Quick sub modal */}
-      <Modal open={subModalOpen} onClose={closeSubModal} title={`Change Line — ${onFieldPlayerIds.length}/7`}>
+      {/* Mid-point substitution modal */}
+      <Modal open={subModalOpen} onClose={closeSubModal} title={`Substitution — ${onFieldPlayerIds.length}/7`}>
+        <p className="text-[10px] text-[#64748b] font-[DM_Mono] uppercase tracking-wider mb-3">
+          Everyone who takes the field is credited for this point
+        </p>
         <div className="grid grid-cols-3 gap-2 mb-3">
           {activePlayers.filter(p => p.active).map(p => {
             const on = onFieldPlayerIds.includes(p.id)
@@ -276,7 +229,6 @@ function pickerTitle(ctx: string | null): string {
     case 'drop':        return 'Who dropped it?'
     case 'their_drop':  return 'Who picked it up?'
     case 'callahan':    return 'Who scored the Callahan?'
-    case 'their_stall': return 'Who recovered the disc?'
     default:            return 'Select Player'
   }
 }

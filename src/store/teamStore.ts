@@ -120,6 +120,7 @@ export const useTeamStore = create<TeamState>((set) => ({
       date: opts.date ?? new Date(),
       location: opts.location,
       windDirection: opts.windDirection ?? null,
+      targetScore: opts.targetScore ?? 15,
       isComplete: false,
       ourScore: 0,
       theirScore: 0,

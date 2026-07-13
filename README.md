@@ -1,73 +1,66 @@
-# React + TypeScript + Vite
+# UltiAnalytics
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Offline-first ultimate frisbee game tracker and analytics PWA, modeled on
+[UltiAnalytics](https://www.ultianalytics.com/). Track every point from the
+sideline on a phone, then review per-player and team stats after the game.
 
-Currently, two official plugins are available:
+## How tracking works
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The tracker mirrors the UltiAnalytics flow:
 
-## React Compiler
+1. **Line gate between points** — before every point you confirm O/D and the
+   seven players (last line is preselected; one tap to reuse it). The first
+   point asks whether you start on offense (receive) or defense (pull).
+2. **Offense** — tap the player who has the disc, then each receiver in turn.
+   Goal / Throwaway / Drop / Stall buttons close out the possession.
+3. **Defense** — count opponent passes, log D blocks, their drops/stalls,
+   Callahans, and their goals.
+4. **O/D auto-alternates** after each score, including the **halftime flip**
+   (derived from the game's target score, e.g. game to 15 → half at 8).
+5. **Substitutions** mid-point credit everyone who took the field; **Undo**
+   works across point boundaries (undoing a goal reopens the point).
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+State is reconstructed from the event log on reload, so a phone lock or
+browser restart mid-point resumes exactly where you left off.
 
-## Expanding the ESLint configuration
+## Stats
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+Per-player: points played, goals, assists, Ds, drops, throwaways, +/-,
+throw %, catch %, O/D efficiency, conversion rate. Per-team: O-hold % and
+D-break %. Views: ranked player bar charts (per stat), sortable tables,
+and a scoring timeline — per game and per season.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Data & backups
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Everything lives in IndexedDB on the device (persistent storage is requested
+on startup). Until cloud sync ships:
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- **Backup** (team page) exports a full-fidelity JSON of the team — roster,
+  games, points, raw events. **Restore team from backup** (home page)
+  re-imports it; imports are idempotent upserts by id.
+- Game stats export as CSV (aggregates) and raw per-event CSV.
+
+## Development
+
+```sh
+npm install
+npm run dev        # dev server
+npm test           # unit tests (stats + point-state logic)
+npm run lint
+npm run build      # type-check + production build + PWA assets
+npm run preview    # serve the production build
+npm run test:e2e   # browser smoke test of the full game flow (needs preview running)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Deployment notes
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- SPA routing: the host must rewrite unknown paths to `index.html`
+  (Netlify `_redirects`, Vercel rewrites, etc.), or deep links 404 on refresh.
+- The PWA precaches the app shell and self-hosted fonts, so the tracker works
+  fully offline after the first load.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Roadmap
+
+- **Phase 4:** Supabase-backed cloud sync, shared team pages, and the live
+  spectator view (`/watch/:gameId` is a placeholder; `src/lib/supabase.ts`
+  holds the client stub — set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`).

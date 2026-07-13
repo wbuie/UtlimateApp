@@ -1,26 +1,34 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTeamStore } from '../store/teamStore'
 import { getGames } from '../lib/db'
+import { importTeamBackup } from '../lib/backup'
+
+interface TeamGameInfo {
+  count: number
+  live: boolean   // has a game still in progress
+}
 
 export function Home() {
   const { teams, loading, loadTeams, createTeam } = useTeamStore()
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [shortName, setShortName] = useState('')
-  const [gameCounts, setGameCounts] = useState<Record<string, number>>({})
+  const [gameInfo, setGameInfo] = useState<Record<string, TeamGameInfo>>({})
+  const [importError, setImportError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { loadTeams() }, [])
+  useEffect(() => { loadTeams() }, [loadTeams])
 
   useEffect(() => {
     if (teams.length === 0) return
     ;(async () => {
-      const counts: Record<string, number> = {}
+      const info: Record<string, TeamGameInfo> = {}
       await Promise.all(teams.map(async t => {
         const games = await getGames(t.id)
-        counts[t.id] = games.length
+        info[t.id] = { count: games.length, live: games.some(g => !g.isComplete) }
       }))
-      setGameCounts(counts)
+      setGameInfo(info)
     })()
   }, [teams])
 
@@ -31,6 +39,19 @@ export function Home() {
     setName('')
     setShortName('')
     setShowForm(false)
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setImportError(null)
+    try {
+      await importTeamBackup(await file.text())
+      await loadTeams()
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Import failed')
+    }
   }
 
   return (
@@ -123,7 +144,7 @@ export function Home() {
           </div>
         ) : (
           teams.map(t => {
-            const count = gameCounts[t.id] ?? 0
+            const { count = 0, live = false } = gameInfo[t.id] ?? {}
             return (
               <Link
                 key={t.id}
@@ -151,10 +172,10 @@ export function Home() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {count > 0 && (
+                  {live && (
                     <span className="text-[10px] font-[DM_Mono] text-[#22c55e] border border-[#166534] bg-[#166534]/20
-                                     px-2 py-0.5 rounded-full uppercase tracking-wider">
-                      Active
+                                     px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">
+                      ● Live
                     </span>
                   )}
                   <span className="text-[#64748b] text-lg font-[Barlow_Condensed]">›</span>
@@ -163,6 +184,21 @@ export function Home() {
             )
           })
         )}
+
+        {/* Restore from backup */}
+        <div className="mt-auto pt-6 pb-2 flex flex-col items-center gap-1">
+          <input ref={fileInputRef} type="file" accept="application/json,.json"
+            className="hidden" onChange={handleImportFile} />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="text-[11px] font-[DM_Mono] text-[#64748b] hover:text-[#94a3b8] uppercase tracking-wider transition-colors"
+          >
+            ↑ Restore team from backup
+          </button>
+          {importError && (
+            <p className="text-[11px] font-[DM_Mono] text-[#ef4444]">{importError}</p>
+          )}
+        </div>
       </div>
     </div>
   )

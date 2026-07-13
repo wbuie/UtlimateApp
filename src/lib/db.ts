@@ -90,12 +90,21 @@ export async function upsertPoint(point: Point): Promise<void> {
 }
 
 // ── Events ─────────────────────────────────────────────
+// Timestamps have millisecond resolution, so two fast taps can collide;
+// seq breaks the tie (older records without seq sort by timestamp alone).
+function orderEvents(events: GameEvent[]): GameEvent[] {
+  return events.sort((a, b) =>
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime() ||
+    (a.seq ?? 0) - (b.seq ?? 0),
+  )
+}
+
 export async function getEvents(gameId: string): Promise<GameEvent[]> {
-  return db.events.where('gameId').equals(gameId).sortBy('timestamp')
+  return orderEvents(await db.events.where('gameId').equals(gameId).toArray())
 }
 
 export async function getPointEvents(pointId: string): Promise<GameEvent[]> {
-  return db.events.where('pointId').equals(pointId).sortBy('timestamp')
+  return orderEvents(await db.events.where('pointId').equals(pointId).toArray())
 }
 
 export async function upsertEvent(event: GameEvent): Promise<void> {

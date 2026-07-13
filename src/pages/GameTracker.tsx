@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useGameStore } from '../store/gameStore'
-import { useTeamStore } from '../store/teamStore'
-import { getGame, getEvents, getPoints, getPlayers, upsertPoint } from '../lib/db'
+import { getGame, getEvents, getPoints, getPlayers } from '../lib/db'
 import { ScoreBar } from '../components/tracker/ScoreBar'
 import { PossessionBar } from '../components/tracker/PossessionBar'
 import { ActionPanel } from '../components/tracker/ActionPanel'
+import { LineGate } from '../components/tracker/LineGate'
 import { LinePanel } from '../components/tracker/LinePanel'
 import { EventLog } from '../components/tracker/EventLog'
 import { StatsPanel } from '../components/tracker/StatsPanel'
@@ -16,44 +16,30 @@ type Tab = 'actions' | 'line' | 'log' | 'stats'
 
 export function GameTracker() {
   const { gameId } = useParams<{ gameId: string }>()
-  const { initGame, game, endPoint } = useGameStore()
-  const { loadPlayers } = useTeamStore()
+  const { initGame, game, currentPoint } = useGameStore()
   const [tab, setTab] = useState<Tab>('actions')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!gameId) return
+    let cancelled = false
     ;(async () => {
       const g = await getGame(gameId)
+      if (cancelled) return
       if (!g) return setLoading(false)
 
-      await loadPlayers(g.teamId)
-      const teamPlayers = await getPlayers(g.teamId)
+      const [teamPlayers, existingPoints, existingEvents] = await Promise.all([
+        getPlayers(g.teamId),
+        getPoints(gameId),
+        getEvents(gameId),
+      ])
+      if (cancelled) return
 
-      const existingPoints = await getPoints(gameId)
-      const existingEvents = await getEvents(gameId)
-
-      // Create first point if none exists
-      let pts = existingPoints
-      if (!pts.length) {
-        const firstPoint = {
-          id: crypto.randomUUID(),
-          gameId,
-          pointNumber: 1,
-          line: 'D' as const,
-          startedAt: new Date(),
-          playerIds: [],
-          scoredBy: null,
-        }
-        await upsertPoint(firstPoint)
-        pts = [firstPoint]
-      }
-
-      initGame(g, teamPlayers, pts, existingEvents)
+      initGame(g, teamPlayers, existingPoints, existingEvents)
       setLoading(false)
     })()
-  }, [gameId])
-
+    return () => { cancelled = true }
+  }, [gameId, initGame])
 
   if (loading) {
     return (
@@ -72,6 +58,9 @@ export function GameTracker() {
     )
   }
 
+  // Between points (and game still live) → the line gate owns the screen
+  const showLineGate = !currentPoint && !game.isComplete
+
   const TABS: { id: Tab; label: string }[] = [
     { id: 'actions', label: 'Actions' },
     { id: 'line',    label: 'Line' },
@@ -83,9 +72,11 @@ export function GameTracker() {
     <div className="min-h-dvh bg-[#0f172a] flex flex-col">
       {/* Back + title */}
       <div className="bg-[#1e293b] border-b border-[#334155] px-4 py-2 flex items-center gap-3">
-        <Link to={`/team/${game.teamId}`} className="text-[#94a3b8] hover:text-[#f1f5f9] text-lg">‹</Link>
+        <Link to={`/team/${game.teamId}`} aria-label="Back to team"
+          className="text-[#94a3b8] hover:text-[#f1f5f9] text-lg">‹</Link>
         <span className="text-sm font-[Barlow_Condensed] uppercase text-[#94a3b8]">
           vs {game.opponent}
+          {game.targetScore ? <span className="text-[#475569]"> · to {game.targetScore}</span> : null}
         </span>
         <Link to={`/stats/${game.id}`} className="ml-auto text-xs font-[DM_Mono] text-[#94a3b8] hover:text-[#f1f5f9]">
           Stats →
@@ -93,34 +84,62 @@ export function GameTracker() {
       </div>
 
       <ScoreBar />
-      <PossessionBar />
 
-      {/* Tabs */}
-      <div className="flex bg-[#1e293b] border-b border-[#334155]">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex-1 py-2.5 text-xs font-bold font-[Barlow_Condensed] uppercase tracking-wide transition-colors
-              ${tab === t.id
-                ? 'text-[#f1f5f9] border-b-2 border-[#22c55e]'
-                : 'text-[#64748b] hover:text-[#94a3b8]'}`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {showLineGate ? (
+        <div className="flex-1 overflow-y-auto">
+          <LineGate />
+        </div>
+      ) : (
+        <>
+          <PossessionBar />
 
-      {/* Tab content */}
-      <div className="flex-1 overflow-y-auto pb-20">
-        {tab === 'actions' && <ActionPanel />}
-        {tab === 'line'    && <LinePanel />}
-        {tab === 'log'     && <EventLog />}
-        {tab === 'stats'   && <StatsPanel />}
-      </div>
+          {/* Tabs */}
+          <div className="flex bg-[#1e293b] border-b border-[#334155]">
+            {TABS.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`flex-1 py-2.5 text-xs font-bold font-[Barlow_Condensed] uppercase tracking-wide transition-colors
+                  ${tab === t.id
+                    ? 'text-[#f1f5f9] border-b-2 border-[#22c55e]'
+                    : 'text-[#64748b] hover:text-[#94a3b8]'}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
 
-      <BottomBar onEndPoint={endPoint} />
+          {/* Tab content */}
+          <div className="flex-1 overflow-y-auto pb-20">
+            {tab === 'actions' && (game.isComplete ? <GameCompletePanel gameId={game.id} /> : <ActionPanel />)}
+            {tab === 'line'    && <LinePanel />}
+            {tab === 'log'     && <EventLog />}
+            {tab === 'stats'   && <StatsPanel />}
+          </div>
+        </>
+      )}
+
+      <BottomBar />
       <ToastContainer />
+    </div>
+  )
+}
+
+function GameCompletePanel({ gameId }: { gameId: string }) {
+  return (
+    <div className="flex flex-col items-center gap-4 p-8 text-center">
+      <div className="text-4xl">🏁</div>
+      <p className="text-[#f1f5f9] font-[Barlow_Condensed] text-lg uppercase font-black tracking-wide">
+        Game complete
+      </p>
+      <p className="text-[#64748b] font-[DM_Mono] text-xs">
+        The tracker is read-only. Check the log and stats tabs, or open the full summary.
+      </p>
+      <Link to={`/stats/${gameId}`}
+        className="btn-press bg-[#22c55e] text-black font-black font-[Barlow_Condensed] uppercase
+                   tracking-widest px-6 py-3 rounded-lg no-underline">
+        View Final Stats →
+      </Link>
     </div>
   )
 }
