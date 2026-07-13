@@ -13,6 +13,8 @@ const EVENT_LABELS: Record<string, string> = {
   callahan:   '⚡ Callahan',
   their_goal: 'Their Goal',
   penalty:    'Penalty',
+  timeout:    '⏱ Timeout',
+  their_pass: 'Their Pass',
 }
 
 const EVENT_COLOR: Record<string, string> = {

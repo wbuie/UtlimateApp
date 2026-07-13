@@ -56,6 +56,44 @@ export function exportGameCsv(game: Game, players: Player[], points: Point[], ev
   download(`ultianalytics-${date}-vs-${slug}.csv`, lines.join('\n'))
 }
 
+// Raw per-event export (UltiAnalytics-style) — the full play-by-play, so the
+// data can be re-analyzed outside the app.
+const RAW_HEADERS = [
+  'Point', 'Line', 'Seq', 'Event', 'Thrower', 'Receiver', 'Timestamp',
+]
+
+export function exportRawEventsCsv(game: Game, players: Player[], points: Point[], events: GameEvent[]) {
+  const pointById = new Map(points.map(p => [p.id, p]))
+  const nameOf = (id?: string) => id ? (players.find(p => p.id === id)?.name ?? id) : ''
+
+  const lines: string[] = [
+    `# vs ${game.opponent},${new Date(game.date).toLocaleDateString()}`,
+    `# Score,${game.ourScore}-${game.theirScore}`,
+    '',
+    row(RAW_HEADERS),
+  ]
+
+  let i = 0
+  for (const e of events) {
+    if (e.undone) continue
+    i += 1
+    const pt = pointById.get(e.pointId)
+    lines.push(row([
+      pt?.pointNumber ?? '',
+      pt?.line ?? '',
+      i,
+      e.type,
+      nameOf(e.throwerId),
+      nameOf(e.receiverId),
+      new Date(e.timestamp).toISOString(),
+    ]))
+  }
+
+  const slug = game.opponent.replace(/\s+/g, '-').toLowerCase()
+  const date = new Date(game.date).toISOString().slice(0, 10)
+  download(`ultianalytics-${date}-vs-${slug}-events.csv`, lines.join('\n'))
+}
+
 const SEASON_HEADERS = [
   'Player', 'Number', 'Gender', 'Games',
   'Points Played', 'Goals', 'Assists', 'D Blocks', 'Drops', 'Throwaways',

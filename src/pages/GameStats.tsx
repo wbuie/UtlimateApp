@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getGame, getPoints, getEvents, getPlayers } from '../lib/db'
 import { calcPlayerStats, calcTeamEfficiency, calcKeyEvents, type PlayerStatRow, type TeamEfficiency, type KeyEvent } from '../lib/stats'
-import { exportGameCsv } from '../lib/csvExport'
+import { exportGameCsv, exportRawEventsCsv } from '../lib/csvExport'
+import { PlayerStatBars } from '../components/stats/PlayerStatBars'
 import type { Game, Player, Point, GameEvent } from '../types'
 
 type SortKey = keyof Omit<PlayerStatRow, 'playerId'>
@@ -15,7 +16,7 @@ export function GameStats() {
   const [events, setEvents] = useState<GameEvent[]>([])
   const [sortKey, setSortKey] = useState<SortKey>('plusMinus')
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'players' | 'timeline'>('players')
+  const [tab, setTab] = useState<'chart' | 'players' | 'timeline'>('chart')
 
   useEffect(() => {
     if (!gameId) return
@@ -85,9 +86,16 @@ export function GameStats() {
           <button
             onClick={() => exportGameCsv(game, players, points, events)}
             className="btn-press text-xs font-[DM_Mono] border border-[#334155] text-[#94a3b8]
-                       px-3 py-1.5 rounded-lg hover:bg-[#273549] transition-colors"
+                       px-3 py-1.5 rounded-lg hover:bg-[#273549] transition-colors whitespace-nowrap"
           >
-            ↓ CSV
+            ↓ Stats
+          </button>
+          <button
+            onClick={() => exportRawEventsCsv(game, players, points, events)}
+            className="btn-press text-xs font-[DM_Mono] border border-[#334155] text-[#94a3b8]
+                       px-3 py-1.5 rounded-lg hover:bg-[#273549] transition-colors whitespace-nowrap"
+          >
+            ↓ Events
           </button>
         </div>
       </header>
@@ -135,14 +143,21 @@ export function GameStats() {
 
       {/* Tabs */}
       <div className="flex border-b border-[#334155] bg-[#1e293b]">
-        {(['players', 'timeline'] as const).map(t => (
+        {(['chart', 'players', 'timeline'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`btn-press flex-1 py-2.5 text-xs font-bold font-[Barlow_Condensed] uppercase tracking-wide transition-colors
               ${tab === t ? 'text-[#f1f5f9] border-b-2 border-[#22c55e]' : 'text-[#64748b] hover:text-[#94a3b8]'}`}>
-            {t === 'players' ? 'Player Stats' : 'Timeline'}
+            {t === 'chart' ? 'Players' : t === 'players' ? 'Table' : 'Timeline'}
           </button>
         ))}
       </div>
+
+      {/* Player comparison chart */}
+      {tab === 'chart' && (
+        <div className="px-3 py-4 pb-8">
+          <PlayerStatBars rows={stats} />
+        </div>
+      )}
 
       {/* Player stats table */}
       {tab === 'players' && (

@@ -3,18 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { Modal } from '../shared/Modal'
 
-interface Props {
-  onEndPoint: () => void
-}
-
-export function BottomBar({ onEndPoint }: Props) {
-  const { undoLast, events, game, endGame, onFieldPlayerIds } = useGameStore()
+export function BottomBar() {
+  const { undoLast, events, game, endGame, endPoint, currentPoint, onFieldPlayerIds } = useGameStore()
   const navigate = useNavigate()
   const [confirmEndGame, setConfirmEndGame] = useState(false)
+  const [confirmEndPoint, setConfirmEndPoint] = useState(false)
 
   const hasEvents = events.some(e => !e.undone)
   const lineCount = onFieldPlayerIds.length
-  const lineWarning = lineCount < 7
+  const lineWarning = currentPoint !== null && lineCount < 7
 
   if (game?.isComplete) {
     return (
@@ -38,7 +35,7 @@ export function BottomBar({ onEndPoint }: Props) {
         <div className="bg-[#78350f] border-t border-[#f59e0b] px-4 py-1.5 flex items-center gap-2">
           <span className="text-[#f59e0b] text-xs font-[DM_Mono]">⚠</span>
           <span className="text-[#f59e0b] text-xs font-[Barlow_Condensed] font-bold uppercase tracking-wide">
-            {lineCount}/7 players on field — set your line
+            {lineCount}/7 players on field
           </span>
         </div>
       )}
@@ -54,14 +51,18 @@ export function BottomBar({ onEndPoint }: Props) {
         >
           ↩ Undo
         </button>
-        <button
-          onClick={onEndPoint}
-          className="flex-1 py-3 border border-[#334155] rounded-lg text-sm font-bold
-                     font-[Barlow_Condensed] uppercase text-[#f1f5f9]
-                     bg-[#1e293b] hover:bg-[#273549] transition-colors"
-        >
-          End Point →
-        </button>
+        {currentPoint ? (
+          <button
+            onClick={() => setConfirmEndPoint(true)}
+            className="flex-1 py-3 border border-[#334155] rounded-lg text-sm font-bold
+                       font-[Barlow_Condensed] uppercase text-[#f1f5f9]
+                       bg-[#1e293b] hover:bg-[#273549] transition-colors"
+          >
+            End Point →
+          </button>
+        ) : (
+          <div className="flex-1" />
+        )}
         <button
           onClick={() => setConfirmEndGame(true)}
           className="px-4 py-3 border border-[#ef4444] rounded-lg text-sm font-bold
@@ -71,6 +72,32 @@ export function BottomBar({ onEndPoint }: Props) {
           End Game
         </button>
       </div>
+
+      <Modal open={confirmEndPoint} onClose={() => setConfirmEndPoint(false)} title="End point without a score?">
+        <p className="text-[#94a3b8] font-[DM_Mono] text-sm mb-4">
+          Normally a point ends when a goal is logged. Use this only for injury
+          stoppages, caps, or a mis-started point.
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              setConfirmEndPoint(false)
+              await endPoint()
+            }}
+            className="flex-1 py-3 bg-[#1e293b] border border-[#334155] text-[#f1f5f9] font-black
+                       font-[Barlow_Condensed] uppercase rounded-lg hover:bg-[#273549] transition-colors"
+          >
+            End Point
+          </button>
+          <button
+            onClick={() => setConfirmEndPoint(false)}
+            className="flex-1 py-3 border border-[#334155] text-[#94a3b8] font-bold
+                       font-[Barlow_Condensed] uppercase rounded-lg"
+          >
+            Cancel
+          </button>
+        </div>
+      </Modal>
 
       <Modal open={confirmEndGame} onClose={() => setConfirmEndGame(false)} title="End Game?">
         <p className="text-[#94a3b8] font-[DM_Mono] text-sm mb-4">

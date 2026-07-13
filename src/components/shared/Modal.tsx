@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 
 interface Props {
   open: boolean
@@ -8,6 +8,13 @@ interface Props {
 }
 
 export function Modal({ open, onClose, title, children }: Props) {
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
   if (!open) return null
 
   return (
@@ -16,6 +23,9 @@ export function Modal({ open, onClose, title, children }: Props) {
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className="bg-[#1e293b] border border-[#334155] rounded-t-2xl w-full max-w-lg
                    max-h-[80dvh] overflow-y-auto pb-safe"
         onClick={e => e.stopPropagation()}
@@ -27,6 +37,7 @@ export function Modal({ open, onClose, title, children }: Props) {
             </h2>
             <button
               onClick={onClose}
+              aria-label="Close"
               className="text-[#94a3b8] hover:text-[#f1f5f9] text-xl leading-none"
             >
               ✕

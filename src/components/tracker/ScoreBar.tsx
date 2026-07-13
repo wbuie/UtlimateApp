@@ -2,17 +2,17 @@ import { useEffect, useRef, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 
 function usePointTimer(startTime: Date | null): string {
-  const [elapsed, setElapsed] = useState(0)
+  const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
-    if (!startTime) { setElapsed(0); return }
-    const start = new Date(startTime).getTime()
-    const tick = () => setElapsed(Math.floor((Date.now() - start) / 1000))
-    tick()
-    const id = setInterval(tick, 1000)
+    if (!startTime) return
+    const id = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(id)
   }, [startTime])
 
+  const elapsed = startTime
+    ? Math.max(0, Math.floor((now - new Date(startTime).getTime()) / 1000))
+    : 0
   const m = Math.floor(elapsed / 60)
   const s = elapsed % 60
   return `${m}:${s.toString().padStart(2, '0')}`
@@ -37,7 +37,7 @@ export function ScoreBar() {
       clearScoreFlash()
     }, 500)
     return () => clearTimeout(t)
-  }, [scoreFlash])
+  }, [scoreFlash, clearScoreFlash])
 
   if (!game) return null
 

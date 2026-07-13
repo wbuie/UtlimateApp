@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getPlayers, getGames, getPoints, getEvents } from '../lib/db'
+import { db, getPlayers, getGames, getPoints, getEvents } from '../lib/db'
 import { calcPlayerStats, type PlayerStatRow } from '../lib/stats'
 import { exportSeasonCsv } from '../lib/csvExport'
+import { PlayerStatBars } from '../components/stats/PlayerStatBars'
 import type { Player, Game } from '../types'
 
 type SortKey = keyof Omit<PlayerStatRow, 'playerId'>
@@ -19,6 +20,7 @@ export function SeasonStats() {
   const [sortKey, setSortKey] = useState<SortKey>('plusMinus')
   const [loading, setLoading] = useState(true)
   const [allGames, setAllGames] = useState<Game[]>([])
+  const [view, setView] = useState<'chart' | 'table'>('chart')
 
   useEffect(() => {
     if (!teamId) return
@@ -43,9 +45,7 @@ export function SeasonStats() {
         .filter(r => r.pointsPlayed > 0)
 
       setStats(rows)
-      const { useTeamStore } = await import('../store/teamStore')
-      const teamList = useTeamStore.getState().teams
-      const team = teamList.find(t => t.id === teamId)
+      const team = await db.teams.get(teamId)
       setTeamName(team?.name ?? 'Team')
       setLoading(false)
     })()
@@ -105,6 +105,24 @@ export function SeasonStats() {
         </div>
       </header>
 
+      {/* Chart / table toggle */}
+      <div className="flex border-b border-[#334155] bg-[#1e293b]">
+        {(['chart', 'table'] as const).map(v => (
+          <button key={v} onClick={() => setView(v)}
+            className={`btn-press flex-1 py-2.5 text-xs font-bold font-[Barlow_Condensed] uppercase tracking-wide transition-colors
+              ${view === v ? 'text-[#f1f5f9] border-b-2 border-[#22c55e]' : 'text-[#64748b] hover:text-[#94a3b8]'}`}>
+            {v === 'chart' ? 'Players' : 'Table'}
+          </button>
+        ))}
+      </div>
+
+      {view === 'chart' && (
+        <div className="px-3 py-4 pb-8">
+          <PlayerStatBars rows={stats} />
+        </div>
+      )}
+
+      {view === 'table' && (
       <div className="px-3 py-4 overflow-x-auto">
         <p className="text-[10px] text-[#64748b] font-[DM_Mono] mb-3 uppercase tracking-wider">
           Tap column header to sort
@@ -155,6 +173,7 @@ export function SeasonStats() {
           </p>
         )}
       </div>
+      )}
     </div>
   )
 }

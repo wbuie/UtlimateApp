@@ -12,6 +12,7 @@ export type EventType =
   | 'callahan'
   | 'their_goal'
   | 'penalty'
+  | 'timeout'
 
 export type WindDirection = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW'
 export type Gender = 'M' | 'F' | 'X'
@@ -46,6 +47,8 @@ export interface Game {
   isComplete: boolean
   ourScore: number
   theirScore: number
+  targetScore?: number      // e.g. game to 15; drives halftime detection
+  startingLine?: LineType   // did we start the game on O or D
   videoUrl?: string
   videoOffsetSeconds?: number
 }
@@ -69,6 +72,7 @@ export interface GameEvent {
   throwerId?: string
   receiverId?: string
   timestamp: Date
+  seq?: number              // monotonic per game; stable ordering when timestamps collide
   videoTimestamp?: number
   undone: boolean
 }
