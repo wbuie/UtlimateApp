@@ -3,6 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useTeamStore } from '../store/teamStore'
 import { Modal } from '../components/shared/Modal'
 import { exportTeamBackup } from '../lib/backup'
+import { useSyncStore } from '../store/syncStore'
 import type { Player } from '../types'
 
 export function Team() {
@@ -15,6 +16,8 @@ export function Team() {
     createGame, removeGame, removeTeam,
   } = useTeamStore()
 
+  const { session, busy: syncBusy, pushTeamToCloud } = useSyncStore()
+  const [pushState, setPushState] = useState<'idle' | 'done' | 'error'>('idle')
   const [tab, setTab] = useState<'roster' | 'games'>('roster')
   const [showPlayerForm, setShowPlayerForm] = useState(false)
   const [showGameForm, setShowGameForm] = useState(false)
@@ -105,6 +108,26 @@ export function Team() {
               {team.name}
             </h1>
           </div>
+          {session && (
+            <button
+              onClick={async () => {
+                setPushState('idle')
+                try { await pushTeamToCloud(team); setPushState('done') }
+                catch { setPushState('error') }
+              }}
+              disabled={syncBusy}
+              aria-label="Push team to cloud"
+              className={`btn-press text-xs font-[DM_Mono] border px-3 py-1.5 rounded-lg
+                         transition-colors whitespace-nowrap disabled:opacity-40
+                         ${pushState === 'done'
+                           ? 'text-[#22c55e] border-[#166534] bg-[#166534]/20'
+                           : pushState === 'error'
+                           ? 'text-[#ef4444] border-[#7f1d1d] bg-[#7f1d1d]/20'
+                           : 'text-[#3b82f6] border-[#1e3a5f] bg-[#1e3a5f]/20 hover:bg-[#1e3a5f]/40'}`}
+            >
+              {syncBusy ? '☁ …' : pushState === 'done' ? '☁ ✓' : pushState === 'error' ? '☁ ⚠' : '☁ Push'}
+            </button>
+          )}
           <button
             onClick={() => exportTeamBackup(team)}
             aria-label="Export team backup"

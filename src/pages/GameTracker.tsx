@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useGameStore } from '../store/gameStore'
+import { useSyncStore } from '../store/syncStore'
 import { getGame, getEvents, getPoints, getPlayers } from '../lib/db'
 import { ScoreBar } from '../components/tracker/ScoreBar'
 import { PossessionBar } from '../components/tracker/PossessionBar'
@@ -16,9 +17,24 @@ type Tab = 'actions' | 'line' | 'log' | 'stats'
 
 export function GameTracker() {
   const { gameId } = useParams<{ gameId: string }>()
-  const { initGame, game, currentPoint } = useGameStore()
+  const { initGame, game, currentPoint, addToast } = useGameStore()
+  const { session } = useSyncStore()
   const [tab, setTab] = useState<Tab>('actions')
   const [loading, setLoading] = useState(true)
+
+  async function shareLiveLink() {
+    if (!game) return
+    const url = `${window.location.origin}/watch/${game.id}`
+    try {
+      if (navigator.share) await navigator.share({ title: `Live: vs ${game.opponent}`, url })
+      else {
+        await navigator.clipboard.writeText(url)
+        addToast('Live link copied')
+      }
+    } catch {
+      addToast(url) // last resort: surface it
+    }
+  }
 
   useEffect(() => {
     if (!gameId) return
@@ -78,7 +94,14 @@ export function GameTracker() {
           vs {game.opponent}
           {game.targetScore ? <span className="text-[#475569]"> · to {game.targetScore}</span> : null}
         </span>
-        <Link to={`/stats/${game.id}`} className="ml-auto text-xs font-[DM_Mono] text-[#94a3b8] hover:text-[#f1f5f9]">
+        {session && (
+          <button onClick={shareLiveLink} aria-label="Share live spectator link"
+            className="ml-auto text-xs font-[DM_Mono] text-[#3b82f6] hover:text-[#60a5fa]">
+            📡 Share
+          </button>
+        )}
+        <Link to={`/stats/${game.id}`}
+          className={`text-xs font-[DM_Mono] text-[#94a3b8] hover:text-[#f1f5f9] ${session ? '' : 'ml-auto'}`}>
           Stats →
         </Link>
       </div>

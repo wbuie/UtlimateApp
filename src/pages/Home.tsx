@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTeamStore } from '../store/teamStore'
 import { getGames } from '../lib/db'
 import { importTeamBackup } from '../lib/backup'
+import { CloudSyncCard } from '../components/shared/CloudSyncCard'
 
 interface TeamGameInfo {
   count: number
@@ -128,8 +129,12 @@ export function Home() {
         </form>
       )}
 
+      <div className="pt-4">
+        <CloudSyncCard />
+      </div>
+
       {/* Team list */}
-      <div className="flex-1 p-4 flex flex-col gap-3">
+      <div className="flex-1 p-4 pt-2 flex flex-col gap-3">
         {loading ? (
           <p className="text-center text-[#64748b] font-[DM_Mono] text-sm mt-8">Loading…</p>
         ) : teams.length === 0 ? (

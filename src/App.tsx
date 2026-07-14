@@ -1,5 +1,6 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useSyncStore } from './store/syncStore'
 import { Home } from './pages/Home'
 import { Team } from './pages/Team'
 import { GameTracker } from './pages/GameTracker'
@@ -19,6 +20,9 @@ function PageFallback() {
 }
 
 export default function App() {
+  const initSync = useSyncStore(s => s.init)
+  useEffect(() => { initSync() }, [initSync])
+
   return (
     <BrowserRouter>
       <Suspense fallback={<PageFallback />}>

@@ -1,5 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 import type { Team, Player, Game, Point, GameEvent } from '../types'
+import { queueChange } from './remote'
 
 export class UltiDB extends Dexie {
   teams!: Table<Team>
@@ -29,6 +30,7 @@ export async function getTeams(): Promise<Team[]> {
 
 export async function upsertTeam(team: Team): Promise<void> {
   await db.teams.put(team)
+  queueChange('teams', 'upsert', team)
 }
 
 export async function deleteTeam(id: string): Promise<void> {
@@ -43,6 +45,7 @@ export async function deleteTeam(id: string): Promise<void> {
     await db.players.where('teamId').equals(id).delete()
     await db.teams.delete(id)
   })
+  queueChange('teams', 'delete', { id }) // children cascade remotely via FKs
 }
 
 // ── Players ────────────────────────────────────────────
@@ -52,10 +55,12 @@ export async function getPlayers(teamId: string): Promise<Player[]> {
 
 export async function upsertPlayer(player: Player): Promise<void> {
   await db.players.put(player)
+  queueChange('players', 'upsert', player)
 }
 
 export async function deletePlayer(id: string): Promise<void> {
   await db.players.delete(id)
+  queueChange('players', 'delete', { id })
 }
 
 // ── Games ──────────────────────────────────────────────
@@ -69,6 +74,7 @@ export async function getGame(id: string): Promise<Game | undefined> {
 
 export async function upsertGame(game: Game): Promise<void> {
   await db.games.put(game)
+  queueChange('games', 'upsert', game)
 }
 
 export async function deleteGame(id: string): Promise<void> {
@@ -78,6 +84,7 @@ export async function deleteGame(id: string): Promise<void> {
     await db.points.where('gameId').equals(id).delete()
     await db.games.delete(id)
   })
+  queueChange('games', 'delete', { id }) // points/events cascade remotely
 }
 
 // ── Points ─────────────────────────────────────────────
@@ -87,6 +94,7 @@ export async function getPoints(gameId: string): Promise<Point[]> {
 
 export async function upsertPoint(point: Point): Promise<void> {
   await db.points.put(point)
+  queueChange('points', 'upsert', point)
 }
 
 // ── Events ─────────────────────────────────────────────
@@ -109,8 +117,11 @@ export async function getPointEvents(pointId: string): Promise<GameEvent[]> {
 
 export async function upsertEvent(event: GameEvent): Promise<void> {
   await db.events.put(event)
+  queueChange('events', 'upsert', event)
 }
 
 export async function markEventUndone(id: string): Promise<void> {
   await db.events.update(id, { undone: true })
+  const updated = await db.events.get(id)
+  if (updated) queueChange('events', 'upsert', updated)
 }
